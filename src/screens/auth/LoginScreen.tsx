@@ -18,7 +18,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuth();
+  const { setUser, setToken, setUserType } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -31,12 +31,25 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const loginData: LoginRequest = { email, password };
       const response = await authService.login(loginData);
 
-      if (response.data) {
-        const { token, user } = response.data;
+      if (response.success && response.token && response.userData) {
+        const { token, userData, userType } = response;
+
         await AsyncStorage.setItem('authToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        await AsyncStorage.setItem('userType', userType);
+
         setToken(token);
-        setUser(user);
+        setUser(userData);
+        setUserType(userType);
+
+        // Navigate to appropriate dashboard
+        if (userType === 'Distributor') {
+          navigation.replace('/distributor/dashboard');
+        } else if (userType === 'Company') {
+          navigation.replace('/company/dashboard');
+        } else if (userType === 'Technician') {
+          navigation.replace('/technician/dashboard');
+        }
       }
     } catch (error: any) {
       Alert.alert('Login Failed', error.response?.data?.message || 'An error occurred');
@@ -83,7 +96,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('auth/role-selection')}>
+          <TouchableOpacity onPress={() => navigation.push('/auth/role-selection')} disabled={loading}>
             <Text style={styles.linkText}>Register</Text>
           </TouchableOpacity>
         </View>

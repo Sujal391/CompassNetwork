@@ -1,19 +1,21 @@
 // User Roles
-export type UserRole = 'distributor' | 'company' | 'technician';
+export type UserRole = 'Distributor' | 'Company' | 'Technician';
 
 // Auth Response
 export interface AuthResponse {
+  success: boolean;
+  message: string;
   token: string;
-  user: User;
+  userType: UserRole;
+  userData: User;
 }
 
 // User Types
 export interface User {
-  id: string;
+  id: number;
   email: string;
-  name?: string;
-  role: UserRole;
-  companyId?: string;
+  name: string;
+  referCode?: string;
 }
 
 // Distributor Registration

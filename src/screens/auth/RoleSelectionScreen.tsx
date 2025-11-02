@@ -39,7 +39,8 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
           <TouchableOpacity
             key={role.id}
             style={styles.roleCard}
-            onPress={() => navigation.navigate(`auth/register-${role.id}`)}
+            onPress={() => navigation.push(`/auth/register-${role.id}`)}
+            activeOpacity={0.7}
           >
             <Text style={styles.roleIcon}>{role.icon}</Text>
             <View style={styles.roleInfo}>
@@ -52,7 +53,7 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('auth/login')}>
+          <TouchableOpacity onPress={() => navigation.push('/auth/login')} activeOpacity={0.7}>
             <Text style={styles.linkText}>Login</Text>
           </TouchableOpacity>
         </View>

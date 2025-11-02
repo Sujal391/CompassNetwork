@@ -5,8 +5,7 @@ import {
   TechnicianRegisterRequest,
   LoginRequest,
   AuthResponse,
-  ApiResponse,
-} from '@/types';
+} from '@/src/types';
 
 const AUTH_ENDPOINTS = {
   REGISTER_DISTRIBUTOR: '/api/Auth/register-distributor',
@@ -21,7 +20,7 @@ export const authService = {
    */
   registerDistributor: async (
     data: DistributorRegisterRequest
-  ): Promise<ApiResponse<AuthResponse>> => {
+  ): Promise<AuthResponse> => {
     try {
       const response = await apiClient.post(
         AUTH_ENDPOINTS.REGISTER_DISTRIBUTOR,
@@ -38,7 +37,7 @@ export const authService = {
    */
   registerCompany: async (
     data: CompanyRegisterRequest
-  ): Promise<ApiResponse<AuthResponse>> => {
+  ): Promise<AuthResponse> => {
     try {
       const response = await apiClient.post(
         AUTH_ENDPOINTS.REGISTER_COMPANY,
@@ -56,7 +55,7 @@ export const authService = {
   registerTechnician: async (
     companyId: string,
     data: TechnicianRegisterRequest
-  ): Promise<ApiResponse<AuthResponse>> => {
+  ): Promise<AuthResponse> => {
     try {
       const response = await apiClient.post(
         `${AUTH_ENDPOINTS.REGISTER_TECHNICIAN}/${companyId}`,
@@ -71,7 +70,7 @@ export const authService = {
   /**
    * Login user
    */
-  login: async (data: LoginRequest): Promise<ApiResponse<AuthResponse>> => {
+  login: async (data: LoginRequest): Promise<AuthResponse> => {
     try {
       const response = await apiClient.post(AUTH_ENDPOINTS.LOGIN, data);
       return response.data;

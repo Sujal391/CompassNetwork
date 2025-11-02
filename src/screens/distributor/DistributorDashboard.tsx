@@ -13,10 +13,7 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
 
   const handleLogout = async () => {
     await logout();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
+    navigation.replace('/landing');
   };
 
   const menuItems = [
