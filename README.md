@@ -1,50 +1,214 @@
-# Welcome to your Expo app 👋
+# Compass Network - React Native App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A professional, scalable React Native (Expo) application with role-based authentication and integration with 4 API endpoints.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## 🚀 Quick Start
 
 ```bash
-npm run reset-project
+cd MyApp
+npm install
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then press:
+- `a` for Android
+- `i` for iOS  
+- `w` for Web
 
-## Learn more
+## 📚 Documentation
 
-To learn more about developing your project with Expo, look at the following resources:
+### Getting Started
+- **[QUICK_START.md](./QUICK_START.md)** - Start here! Quick reference guide
+- **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - Detailed setup and configuration
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Understanding the Project
+- **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)** - Folder structure and organization
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design and data flow
+- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - What was built
 
-## Join the community
+### Development
+- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - API endpoints and usage
+- **[CHECKLIST.md](./CHECKLIST.md)** - Project completion checklist
 
-Join our community of developers creating universal apps.
+## ✨ Features
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+✅ **Role-Based Authentication**
+- Distributor registration & login
+- Company registration & login
+- Technician registration & login
+
+✅ **4 Integrated APIs**
+- `POST /api/Auth/register-distributor`
+- `POST /api/Auth/register-company`
+- `POST /api/Auth/register-technician/{companyId}`
+- `POST /api/Auth/login`
+
+✅ **Professional Architecture**
+- Clean, scalable folder structure
+- Separation of concerns
+- TypeScript for type safety
+- React Context for state management
+- Axios with interceptors
+
+✅ **User Experience**
+- Persistent login (AsyncStorage)
+- Automatic token injection
+- Error handling & user feedback
+- Loading states
+- Role-based dashboards
+
+## 📁 Project Structure
+
+```
+MyApp/
+├── app/                    # Expo Router pages
+│   ├── _layout.tsx        # Root layout with auth
+│   ├── auth/              # Login & registration
+│   ├── distributor/       # Distributor dashboard
+│   ├── company/           # Company dashboard
+│   └── technician/        # Technician dashboard
+│
+├── src/                   # Business logic
+│   ├── screens/           # Screen components
+│   ├── components/        # Reusable components
+│   ├── services/api/      # API integration
+│   ├── context/           # State management
+│   ├── types/             # TypeScript types
+│   ├── utils/             # Utilities
+│   ├── constants/         # Constants
+│   └── hooks/             # Custom hooks
+│
+└── assets/                # Images, fonts, etc.
+```
+
+## 🔐 Authentication Flow
+
+```
+User Opens App
+    ↓
+Check Stored Token
+    ↓
+Token Valid? → Show Dashboard
+Token Invalid? → Show Login
+    ↓
+User Registers/Logs In
+    ↓
+Receive JWT Token
+    ↓
+Store Token & Show Dashboard
+```
+
+## 🛠️ Tech Stack
+
+- **Framework**: React Native 0.81.5
+- **Platform**: Expo 54.0.20
+- **Routing**: Expo Router
+- **HTTP Client**: Axios
+- **State Management**: React Context
+- **Storage**: AsyncStorage
+- **Language**: TypeScript
+- **Styling**: React Native StyleSheet
+
+## 📱 Supported Platforms
+
+- ✅ iOS
+- ✅ Android
+- ✅ Web
+
+## 🎯 Key Files
+
+| File | Purpose |
+|------|---------|
+| `app/_layout.tsx` | Root navigation & auth provider |
+| `src/context/AuthContext.tsx` | Authentication state |
+| `src/services/api/authService.ts` | API endpoints |
+| `src/services/api/client.ts` | Axios configuration |
+| `src/types/index.ts` | TypeScript types |
+
+## 💡 Common Tasks
+
+### Add a New Screen
+1. Create screen in `src/screens/[role]/NewScreen.tsx`
+2. Create route in `app/[role]/new-screen.tsx`
+3. Add navigation link
+
+### Call an API
+```typescript
+import { authService } from '@/services/api/authService';
+
+const response = await authService.login({
+  email: 'user@example.com',
+  password: 'password'
+});
+```
+
+### Use Auth Context
+```typescript
+import { useAuth } from '@/context/AuthContext';
+
+function MyComponent() {
+  const { user, logout } = useAuth();
+  return <Text>Welcome, {user?.name}</Text>;
+}
+```
+
+## 🔗 API Base URL
+
+```
+https://compassnetwork.runasp.net
+```
+
+## 🎨 Design System
+
+- **Primary Color**: `#007AFF` (Blue)
+- **Success Color**: `#10B981` (Green)
+- **Warning Color**: `#F59E0B` (Amber)
+- **Danger Color**: `#FF6B6B` (Red)
+
+## 📊 Project Status
+
+✅ **Complete & Ready for Development**
+
+- ✅ Clean architecture
+- ✅ Full authentication system
+- ✅ 4 APIs integrated
+- ✅ Role-based dashboards
+- ✅ Professional UI/UX
+- ✅ Comprehensive documentation
+
+## 🚀 Next Steps
+
+1. **Test the app** - Run `npm start` and test authentication
+2. **Customize dashboards** - Add role-specific features
+3. **Add more screens** - Create feature screens
+4. **Deploy** - Build and deploy to app stores
+
+## 📞 Support
+
+### Documentation
+- Check the relevant `.md` file in the project root
+- Each file has detailed explanations and examples
+
+### Troubleshooting
+- **App won't start?** → See SETUP_GUIDE.md
+- **API issues?** → See API_DOCUMENTATION.md
+- **Architecture questions?** → See ARCHITECTURE.md
+
+### External Resources
+- [Expo Docs](https://docs.expo.dev)
+- [React Native Docs](https://reactnative.dev)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs)
+- [Axios Docs](https://axios-http.com)
+
+## 📝 License
+
+This project is ready for development and deployment.
+
+## 🎉 Ready to Build?
+
+Start with **[QUICK_START.md](./QUICK_START.md)** for immediate next steps!
+
+---
+
+**Built with ❤️ using React Native & Expo**
+
