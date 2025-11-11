@@ -2,6 +2,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { apiService } from '@/src/services/api/apiService';
 import { LoginRequest } from '@/src/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,15 +15,16 @@ import {
   View,
 } from 'react-native';
 
-export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const AdminLoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { setUser, setToken, setUserType } = useAuth();
+  const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
@@ -34,27 +36,30 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       if (response.success && response.token && response.userData) {
         const { token, userData, userType } = response;
 
+        // Verify that the user is an admin
+        if (userType !== 'Admin') {
+          Alert.alert('Access Denied', 'This login is for administrators only.');
+          setLoading(false);
+          return;
+        }
+
+        // Store in AsyncStorage first
         await AsyncStorage.setItem('authToken', token);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         await AsyncStorage.setItem('userType', userType);
 
+        // Update auth context
         setToken(token);
         setUser(userData);
         setUserType(userType);
 
-        // Navigate to appropriate dashboard
-        if (userType === 'Admin') {
-          navigation.replace('/admin/dashboard');
-        } else if (userType === 'Distributor') {
-          navigation.replace('/distributor/dashboard');
-        } else if (userType === 'Company') {
-          navigation.replace('/company/dashboard');
-        } else if (userType === 'Technician') {
-          navigation.replace('/technician/dashboard');
-        }
+        // Navigate to admin dashboard using router
+        router.replace('/admin/dashboard');
+      } else {
+        Alert.alert('Login Failed', 'Invalid response from server');
       }
     } catch (error: any) {
-      Alert.alert('Login Failed', error.response?.data?.message || 'An error occurred');
+      Alert.alert('Login Failed', error.response?.data?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -63,11 +68,15 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Login</Text>
+        <View style={styles.header}>
+          <Text style={styles.adminBadge}>🔐 ADMIN</Text>
+          <Text style={styles.title}>Admin Login</Text>
+          <Text style={styles.subtitle}>Access the administrative panel</Text>
+        </View>
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Admin Email"
           value={email}
           onChangeText={setEmail}
           editable={!loading}
@@ -92,14 +101,13 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Login</Text>
+            <Text style={styles.buttonText}>Login as Admin</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.push('/auth/role-selection')} disabled={loading}>
-            <Text style={styles.linkText}>Register</Text>
+          <TouchableOpacity onPress={() => navigation.push('/landing')} disabled={loading}>
+            <Text style={styles.linkText}>← Back to Home</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -110,31 +118,43 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#1a1a2e',
   },
   content: {
     padding: 20,
-    justifyContent: 'center',
-    minHeight: '100%',
+    paddingTop: 60,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  adminBadge: {
+    fontSize: 32,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 30,
+    marginBottom: 10,
+    color: '#fff',
     textAlign: 'center',
-    color: '#333',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#aaa',
+    textAlign: 'center',
   },
   input: {
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
-    fontSize: 16,
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#e74c3c',
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -149,18 +169,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  footerText: {
-    color: '#666',
-    fontSize: 14,
+    marginTop: 30,
+    alignItems: 'center',
   },
   linkText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#3498db',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

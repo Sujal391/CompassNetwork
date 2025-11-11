@@ -8,38 +8,30 @@ import {
 } from 'react-native';
 
 export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  // Only Company can register publicly
+  // Distributors are registered by Admin
+  // Technicians are registered by Companies
   const roles = [
-    {
-      id: 'distributor',
-      title: 'Distributor',
-      description: 'Register as a distributor',
-      icon: '📦',
-    },
     {
       id: 'company',
       title: 'Company',
       description: 'Register your company',
       icon: '🏢',
     },
-    {
-      id: 'technician',
-      title: 'Technician',
-      description: 'Register as a technician',
-      icon: '🔧',
-    },
   ];
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Select Your Role</Text>
-        <Text style={styles.subtitle}>Choose how you want to register</Text>
+        <Text style={styles.title}>Company Registration</Text>
+        <Text style={styles.subtitle}>Register your company to get started</Text>
 
         {roles.map((role) => (
           <TouchableOpacity
             key={role.id}
             style={styles.roleCard}
-            onPress={() => navigation.navigate(`auth/register-${role.id}`)}
+            onPress={() => navigation.push(`/auth/register-${role.id}`)}
+            activeOpacity={0.7}
           >
             <Text style={styles.roleIcon}>{role.icon}</Text>
             <View style={styles.roleInfo}>
@@ -52,7 +44,7 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('auth/login')}>
+          <TouchableOpacity onPress={() => navigation.push('/auth/login')} activeOpacity={0.7}>
             <Text style={styles.linkText}>Login</Text>
           </TouchableOpacity>
         </View>

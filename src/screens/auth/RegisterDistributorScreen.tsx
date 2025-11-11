@@ -1,18 +1,16 @@
+import { apiService } from '@/src/services/api/apiService';
+import { DistributorRegisterRequest } from '@/src/types';
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
+  View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '@/src/context/AuthContext';
-import { authService } from '@/src/services/api/authService';
-import { DistributorRegisterRequest } from '@/src/types';
 
 export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -23,7 +21,6 @@ export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navig
     confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
-  const { setUser, setToken } = useAuth();
 
   const handleRegister = async () => {
     const { name, email, mobileNumber, password, confirmPassword } = formData;
@@ -48,14 +45,19 @@ export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navig
         confirmPassword,
       };
 
-      const response = await authService.registerDistributor(registerData);
+      const response = await apiService.registerDistributor(registerData);
 
-      if (response.data) {
-        const { token, user } = response.data;
-        await AsyncStorage.setItem('authToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        setToken(token);
-        setUser(user);
+      if (response.success) {
+        Alert.alert(
+          'Success',
+          'Registration successful! Please login with your credentials.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.replace('/auth/login')
+            }
+          ]
+        );
       }
     } catch (error: any) {
       Alert.alert('Registration Failed', error.response?.data?.message || 'An error occurred');
@@ -71,7 +73,7 @@ export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navig
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.back()}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
 
