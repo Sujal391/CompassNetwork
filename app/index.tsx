@@ -18,6 +18,10 @@ export default function Index() {
   }
 
   // Redirect to appropriate dashboard based on userType
+  if (userType === 'Admin') {
+    return <Redirect href="/admin/dashboard" />;
+  }
+
   if (userType === 'Distributor') {
     return <Redirect href="/distributor/dashboard" />;
   }

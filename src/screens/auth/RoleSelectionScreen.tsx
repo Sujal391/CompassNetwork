@@ -8,32 +8,23 @@ import {
 } from 'react-native';
 
 export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  // Only Company can register publicly
+  // Distributors are registered by Admin
+  // Technicians are registered by Companies
   const roles = [
-    {
-      id: 'distributor',
-      title: 'Distributor',
-      description: 'Register as a distributor',
-      icon: '📦',
-    },
     {
       id: 'company',
       title: 'Company',
       description: 'Register your company',
       icon: '🏢',
     },
-    {
-      id: 'technician',
-      title: 'Technician',
-      description: 'Register as a technician',
-      icon: '🔧',
-    },
   ];
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Select Your Role</Text>
-        <Text style={styles.subtitle}>Choose how you want to register</Text>
+        <Text style={styles.title}>Company Registration</Text>
+        <Text style={styles.subtitle}>Register your company to get started</Text>
 
         {roles.map((role) => (
           <TouchableOpacity

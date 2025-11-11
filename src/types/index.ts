@@ -1,5 +1,5 @@
 // User Roles
-export type UserRole = 'Distributor' | 'Company' | 'Technician';
+export type UserRole = 'Admin' | 'Distributor' | 'Company' | 'Technician';
 
 // Auth Response
 export interface AuthResponse {
@@ -62,3 +62,93 @@ export interface ApiResponse<T> {
   errors?: Record<string, string[]>;
 }
 
+// Distributor Data (for admin dashboard)
+export interface Distributor {
+  id: number;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  referCode?: string;
+  createdAt?: string;
+}
+
+// Company Data (for admin dashboard)
+export interface Company {
+  id: number;
+  name: string;
+  email: string;
+  gstNumber: string;
+  mobileNumber: string;
+  address: string;
+  referCode?: string;
+  createdAt?: string;
+}
+
+// Technician Data (for admin dashboard)
+export interface Technician {
+  id: number;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  referCode?: string;
+  createdAt?: string;
+}
+
+export interface CableConnection {
+  coreNumber: number;
+  fromColor: string;
+  toColor: string;
+  reason: string;
+}
+
+export interface Photo {
+  photoUrl: string;
+  photoName: string;
+  uploadedAt: string;
+}
+
+export interface SiteVisitPhase1Request {
+  latitude: number;
+  longitude: number;
+  houseNo: string;
+  area: string;
+  street: string;
+  landmark: string;
+  city: string;
+  state: string;
+  pincode: string;
+  cableConnections: CableConnection[];
+}
+
+export interface SiteVisit {
+  id: number;
+  siteName: string;
+  siteAddress: string;
+  visitDate: string;
+  visitTime: string;
+  visitReason: string;
+  visitStatus: string;
+  visitRemarks: string;
+  createdAt?: string;
+  latitude?: number;
+  longitude?: number;
+  houseNo?: string;
+  area?: string;
+  street?: string;
+  landmark?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  cableConnections?: CableConnection[];
+  photos?: Photo[];
+}
+
+export interface SiteVisitRequest {
+  siteName: string;
+  siteAddress: string;
+  visitDate: string;
+  visitTime: string;
+  visitReason: string;
+  visitStatus: string;
+  visitRemarks: string;
+}

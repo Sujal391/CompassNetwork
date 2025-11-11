@@ -1,16 +1,16 @@
+import { apiService } from '@/src/services/api/apiService';
+import { DistributorRegisterRequest } from '@/src/types';
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
+  View,
 } from 'react-native';
-import { authService } from '@/src/services/api/authService';
-import { DistributorRegisterRequest } from '@/src/types';
 
 export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -45,7 +45,7 @@ export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navig
         confirmPassword,
       };
 
-      const response = await authService.registerDistributor(registerData);
+      const response = await apiService.registerDistributor(registerData);
 
       if (response.success) {
         Alert.alert(
@@ -73,7 +73,7 @@ export const RegisterDistributorScreen: React.FC<{ navigation: any }> = ({ navig
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.back()}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
 

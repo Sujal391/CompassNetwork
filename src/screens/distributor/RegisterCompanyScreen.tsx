@@ -1,5 +1,5 @@
 import { apiService } from '@/src/services/api/apiService';
-import { TechnicianRegisterRequest } from '@/src/types';
+import { CompanyRegisterRequest } from '@/src/types';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,27 +12,24 @@ import {
   View,
 } from 'react-native';
 
-export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [companyId, setCompanyId] = useState('');
+export const RegisterCompanyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    companyName: '',
+    companyEmail: '',
+    gstNumber: '',
     mobileNumber: '',
+    companyAddress: '',
     password: '',
     confirmPassword: '',
+    referCode: '',
   });
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!companyId) {
-      Alert.alert('Error', 'Please enter Company ID');
-      return;
-    }
+    const { companyName, companyEmail, gstNumber, mobileNumber, companyAddress, password, confirmPassword, referCode } = formData;
 
-    const { name, email, mobileNumber, password, confirmPassword } = formData;
-
-    if (!name || !email || !mobileNumber || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!companyName || !companyEmail || !gstNumber || !mobileNumber || !companyAddress || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -43,27 +40,41 @@ export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ naviga
 
     setLoading(true);
     try {
-      const registerData: TechnicianRegisterRequest = {
-        name,
-        email,
+      const registerData: CompanyRegisterRequest = {
+        companyName,
+        companyEmail,
+        gstNumber,
         mobileNumber,
+        companyAddress,
         password,
         confirmPassword,
+        referCode: referCode || '',
       };
 
-      const response = await apiService.registerTechnician(companyId, registerData);
+      const response = await apiService.registerCompany(registerData);
 
       if (response.success) {
         Alert.alert(
           'Success',
-          'Registration successful! Please login with your credentials.',
+          'Company registered successfully!',
           [
             {
               text: 'OK',
-              onPress: () => navigation.replace('/auth/login')
+              onPress: () => navigation.back()
             }
           ]
         );
+        // Reset form
+        setFormData({
+          companyName: '',
+          companyEmail: '',
+          gstNumber: '',
+          mobileNumber: '',
+          companyAddress: '',
+          password: '',
+          confirmPassword: '',
+          referCode: '',
+        });
       }
     } catch (error: any) {
       Alert.alert('Registration Failed', error.response?.data?.message || 'An error occurred');
@@ -78,41 +89,27 @@ export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ naviga
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <TouchableOpacity onPress={() => navigation.back()}>
-          <Text style={styles.backButton}>← Back</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.back()} style={styles.backButton}>
+          <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
+        <Text style={styles.title}>Register New Company</Text>
+      </View>
 
-        <Text style={styles.title}>Register as Technician</Text>
-
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            You need a Company ID to register as a technician. Ask your company administrator for this ID.
-          </Text>
-        </View>
-
+      <View style={styles.content}>
         <TextInput
           style={styles.input}
-          placeholder="Company ID"
-          value={companyId}
-          onChangeText={setCompanyId}
-          editable={!loading}
-          keyboardType="numeric"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          value={formData.name}
-          onChangeText={(value) => updateField('name', value)}
+          placeholder="Company Name *"
+          value={formData.companyName}
+          onChangeText={(value) => updateField('companyName', value)}
           editable={!loading}
         />
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
-          value={formData.email}
-          onChangeText={(value) => updateField('email', value)}
+          placeholder="Company Email *"
+          value={formData.companyEmail}
+          onChangeText={(value) => updateField('companyEmail', value)}
           editable={!loading}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -120,7 +117,15 @@ export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ naviga
 
         <TextInput
           style={styles.input}
-          placeholder="Mobile Number"
+          placeholder="GST Number *"
+          value={formData.gstNumber}
+          onChangeText={(value) => updateField('gstNumber', value)}
+          editable={!loading}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Mobile Number *"
           value={formData.mobileNumber}
           onChangeText={(value) => updateField('mobileNumber', value)}
           editable={!loading}
@@ -129,7 +134,17 @@ export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ naviga
 
         <TextInput
           style={styles.input}
-          placeholder="Password"
+          placeholder="Company Address *"
+          value={formData.companyAddress}
+          onChangeText={(value) => updateField('companyAddress', value)}
+          editable={!loading}
+          multiline
+          numberOfLines={3}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Password *"
           value={formData.password}
           onChangeText={(value) => updateField('password', value)}
           editable={!loading}
@@ -138,11 +153,19 @@ export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ naviga
 
         <TextInput
           style={styles.input}
-          placeholder="Confirm Password"
+          placeholder="Confirm Password *"
           value={formData.confirmPassword}
           onChangeText={(value) => updateField('confirmPassword', value)}
           editable={!loading}
           secureTextEntry
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Refer Code (Optional)"
+          value={formData.referCode}
+          onChangeText={(value) => updateField('referCode', value)}
+          editable={!loading}
         />
 
         <TouchableOpacity
@@ -153,7 +176,7 @@ export const RegisterTechnicianScreen: React.FC<{ navigation: any }> = ({ naviga
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Register</Text>
+            <Text style={styles.buttonText}>Register Company</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -166,43 +189,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  content: {
+  header: {
+    backgroundColor: '#007AFF',
     padding: 20,
-    paddingTop: 10,
+    paddingTop: 40,
+    paddingBottom: 30,
   },
   backButton: {
+    marginBottom: 10,
+  },
+  backText: {
+    color: '#fff',
     fontSize: 16,
-    color: '#007AFF',
-    marginBottom: 20,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
+    color: '#fff',
   },
-  infoBox: {
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-  },
-  infoText: {
-    color: '#1976D2',
-    fontSize: 14,
-    lineHeight: 20,
+  content: {
+    padding: 20,
   },
   input: {
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
-    fontSize: 16,
   },
   button: {
     backgroundColor: '#007AFF',
@@ -210,7 +226,6 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: 'center',
     marginTop: 10,
-    marginBottom: 20,
   },
   buttonDisabled: {
     opacity: 0.6,

@@ -19,7 +19,10 @@ function RootLayoutNav() {
         <Stack.Screen name="auth/register-distributor" />
         <Stack.Screen name="auth/register-company" />
         <Stack.Screen name="auth/register-technician" />
+        <Stack.Screen name="admin/login" />
+        <Stack.Screen name="admin/dashboard" />
         <Stack.Screen name="distributor/dashboard" />
+        <Stack.Screen name="distributor/register-company" />
         <Stack.Screen name="company/dashboard" />
         <Stack.Screen name="technician/dashboard" />
       </Stack>

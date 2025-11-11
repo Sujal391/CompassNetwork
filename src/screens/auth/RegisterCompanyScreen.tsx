@@ -1,16 +1,16 @@
+import { apiService } from '@/src/services/api/apiService';
+import { CompanyRegisterRequest } from '@/src/types';
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
+  View,
 } from 'react-native';
-import { authService } from '@/src/services/api/authService';
-import { CompanyRegisterRequest } from '@/src/types';
 
 export const RegisterCompanyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -51,7 +51,7 @@ export const RegisterCompanyScreen: React.FC<{ navigation: any }> = ({ navigatio
         referCode: referCode || '',
       };
 
-      const response = await authService.registerCompany(registerData);
+      const response = await apiService.registerCompany(registerData);
 
       if (response.success) {
         Alert.alert(
@@ -79,7 +79,7 @@ export const RegisterCompanyScreen: React.FC<{ navigation: any }> = ({ navigatio
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.back()}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
 
