@@ -340,8 +340,8 @@ export const AdminDashboard: React.FC<{ navigation: any }> = ({ navigation }) =>
 
             <View style={styles.visitInfo}>
               <Text style={styles.visitSite}>{visit.houseNo}, {visit.area}</Text>
-              <Text style={styles.visitCompany}>📍 {visit.city}, {visit.state}</Text>
               <Text style={styles.visitDate}>📌 {visit.street}</Text>
+              <Text style={styles.visitCompany}>📍 {visit.city}, {visit.state}</Text>
               {visit.cableConnections && visit.cableConnections.length > 0 && (
                 <Text style={styles.visitRemarks}>
                   🔌 {visit.cableConnections.length} cable connection(s)

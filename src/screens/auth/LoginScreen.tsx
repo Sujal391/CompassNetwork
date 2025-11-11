@@ -43,7 +43,7 @@ export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setUserType(userType);
 
         // Navigate to appropriate dashboard
-        if (userType === 'Admin') {
+        if (userType === 'SuperAdmin') {
           navigation.replace('/admin/dashboard');
         } else if (userType === 'Distributor') {
           navigation.replace('/distributor/dashboard');
