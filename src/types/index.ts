@@ -126,6 +126,7 @@ export interface SiteVisit {
   siteAddress: string;
   visitDate: string;
   visitTime: string;
+  visitDateTime: string;
   visitReason: string;
   visitStatus: string;
   visitRemarks: string;
@@ -141,6 +142,7 @@ export interface SiteVisit {
   pincode?: string;
   cableConnections?: CableConnection[];
   photos?: Photo[];
+  technicianName?: string;
 }
 
 export interface SiteVisitRequest {
@@ -148,6 +150,7 @@ export interface SiteVisitRequest {
   siteAddress: string;
   visitDate: string;
   visitTime: string;
+  visitDateTime: string;
   visitReason: string;
   visitStatus: string;
   visitRemarks: string;
