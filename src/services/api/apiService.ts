@@ -21,6 +21,8 @@ const API_ENDPOINTS = {
     REGISTER_DISTRIBUTOR: '/api/Auth/register-distributor',
     REGISTER_COMPANY: '/api/Auth/register-company',
     REGISTER_TECHNICIAN: '/api/Auth/register-technician',
+    EDIT_TECHNICIAN: '/api/Auth/edit-technician',
+    DELETE_TECHNICIAN: '/api/Auth/delete-technician',
   },
   SITE_VISITS: {
     CREATE: '/api/SiteVisits/technician',
@@ -288,6 +290,46 @@ export const apiService = {
     try {
       const response = await apiClient.get(
         `${API_ENDPOINTS.USER.GET_COMPANY_TECHNICIANS}/${companyId}/technicians`
+      );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // ======================================================
+  // 🔸 TECHNICIAN MANAGEMENT SECTION
+  // ======================================================
+
+  /**
+   * Edit technician details
+   */
+  editTechnician: async (
+    companyId: number,
+    technicianId: number,
+    data: TechnicianRegisterRequest
+  ): Promise<AuthResponse> => {
+    try {
+      const response = await apiClient.put(
+        `${API_ENDPOINTS.AUTH.EDIT_TECHNICIAN}/${companyId}/${technicianId}`,
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a technician
+   */
+  deleteTechnician: async (
+    companyId: number,
+    technicianId: number
+  ): Promise<AuthResponse> => {
+    try {
+      const response = await apiClient.delete(
+        `${API_ENDPOINTS.AUTH.DELETE_TECHNICIAN}/${companyId}/${technicianId}`
       );
       return response.data;
     } catch (error) {
