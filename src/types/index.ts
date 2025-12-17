@@ -105,6 +105,7 @@ export interface Photo {
   photoUrl: string;
   photoName: string;
   uploadedAt: string;
+  base64Data?: string;
 }
 
 export interface SiteVisitPhase1Request {

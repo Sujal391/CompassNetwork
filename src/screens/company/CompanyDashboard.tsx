@@ -1,20 +1,21 @@
 import { useAuth } from "@/src/context/AuthContext";
 import { apiService } from "@/src/services/api/apiService";
 import { SiteVisit, Technician, TechnicianRegisterRequest } from "@/src/types";
+import { getImageUri } from "@/src/utils/imageUtils";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export const CompanyDashboard: React.FC<{ navigation: any }> = ({
@@ -641,9 +642,12 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
                           <View key={index} style={styles.photoGalleryItem}>
                             <Image
                               source={{
-                                uri: `https://compassnetwork.runasp.net${photo.photoUrl}`,
+                                uri: getImageUri(photo.photoUrl),
                               }}
                               style={styles.photoGalleryImage}
+                              onError={() => {
+                                console.log('Failed to load image:', photo.photoUrl);
+                              }}
                             />
                             <Text style={styles.photoUploadedAt}>
                               {new Date(photo.uploadedAt).toLocaleDateString(
@@ -931,11 +935,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
+    paddingHorizontal: 5,
   },
   tab: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 5,
     alignItems: "center",
+    justifyContent: "center",
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
@@ -943,9 +950,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "#10B981",
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#666",
     fontWeight: "500",
+    textAlign: "center",
+    flexWrap: "wrap",
   },
   activeTabText: {
     color: "#10B981",
@@ -1316,6 +1325,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     fontSize: 16,
+    color: "#333",
   },
   eyeIcon: {
     padding: 12,

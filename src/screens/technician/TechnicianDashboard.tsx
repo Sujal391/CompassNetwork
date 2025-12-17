@@ -2,7 +2,9 @@ import { useAuth } from '@/src/context/AuthContext';
 import { apiService } from '@/src/services/api/apiService';
 import apiClient from '@/src/services/api/client';
 import { CableConnection, SiteVisit, SiteVisitPhase1Request } from '@/src/types';
+import { getImageUrl } from '@/src/utils/imageUtils';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,7 +16,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
 export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -27,6 +29,7 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
   const [showPhase2Modal, setShowPhase2Modal] = useState(false);
   const [selectedVisitDetails, setSelectedVisitDetails] = useState<SiteVisit | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   // Phase 1 form state
   const [phase1Data, setPhase1Data] = useState({
@@ -165,76 +168,216 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
     setCableConnections(cableConnections.filter((_, i) => i !== index));
   };
 
+  // Also update the pickImages function for consistency:
   const pickImages = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
+  try {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permissionResult.status !== 'granted') {
+      Alert.alert('Permission Required', 'Media library permission is required to select images.');
+      return;
+    }
 
-      if (!result.canceled) {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsMultipleSelection: false,
+      exif: false,
+    });
+
+    console.log('Gallery result:', result);
+
+    if (!result.canceled) {
+      if (result.assets && result.assets.length > 0) {
+        console.log('Selected images:', result.assets);
         setSelectedPhotos(result.assets);
       }
-    } catch (error: any) {
-      Alert.alert('Error', 'Failed to pick images');
     }
-  };
+  } catch (error: any) {
+    console.error('Image picker error:', error);
+    console.error('Error stack:', error.stack);
+    Alert.alert('Error', 'Failed to pick images. Please try again.');
+  }
+};
 
-  const handlePhase2Submit = async () => {
-    if (!selectedVisitForPhotos) {
-      Alert.alert('Error', 'Please select a site visit first');
+  const captureImage = async () => {
+  try {
+    // Request camera permissions first
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (permissionResult.status !== 'granted') {
+      Alert.alert('Permission Required', 'Camera permission is required to capture images.');
       return;
     }
 
-    if (selectedPhotos.length === 0) {
-      Alert.alert('Error', 'Please select at least one photo');
-      return;
-    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: false,
+      exif: false,
+    });
 
-    setLoading(true);
+    console.log('Camera result:', result);
+
+    if (!result.canceled) {
+      if (result.assets && result.assets.length > 0) {
+        const capturedImage = result.assets[0];
+        console.log('Captured image:', capturedImage);
+        
+        // Add the captured image to the array
+        setSelectedPhotos(prev => {
+          const newPhotos = [...prev, capturedImage];
+          console.log('Updated photos count:', newPhotos.length);
+          return newPhotos;
+        });
+      }
+    }
+  } catch (error: any) {
+    console.error('Camera capture error:', error);
+    console.error('Error stack:', error.stack);
+    Alert.alert('Error', 'Failed to capture image. Please try again.');
+  }
+};
+
+  const getCurrentLocation = async () => {
     try {
-      // Convert selected photos to File objects
-      const formData = new FormData();
+      setLocationLoading(true);
 
-      for (const photo of selectedPhotos) {
-        const filename = photo.uri.split('/').pop() || 'photo.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-        formData.append('photos', {
-          uri: photo.uri,
-          name: filename,
-          type: type,
-        } as any);
+      // Request location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Error', 'Location permission denied. Please enable location access in settings.');
+        setLocationLoading(false);
+        return;
       }
 
-      const response = await apiClient.post(
-        `/api/SiteVisits/${selectedVisitForPhotos.id}/photos`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
 
-      if (response) {
-        Alert.alert('Success', 'Photos uploaded successfully!');
-        setSelectedPhotos([]);
-        setPhotosData('');
-        setSelectedVisitForPhotos(null);
-        setShowPhase2Modal(false);
-        // Mark this visit as uploaded
-        setUploadedVisitIds([...uploadedVisitIds, selectedVisitForPhotos.id]);
-        // Refresh the visits list
-        fetchTechnicianVisits();
-      }
+      const { latitude, longitude } = location.coords;
+      updatePhase1Field('latitude', latitude.toString());
+      updatePhase1Field('longitude', longitude.toString());
+      Alert.alert('Success', `Location captured!\nLat: ${latitude.toFixed(6)}\nLng: ${longitude.toFixed(6)}`);
+      setLocationLoading(false);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to upload photos');
-    } finally {
-      setLoading(false);
+      console.error('Location error:', error);
+      Alert.alert('Error', 'Failed to get current location. Please try again.');
+      setLocationLoading(false);
     }
   };
+
+  // Update handlePhase2Submit to handle file creation better:
+  const handlePhase2Submit = async () => {
+  if (!selectedVisitForPhotos) {
+    Alert.alert('Error', 'Please select a site visit first');
+    return;
+  }
+
+  if (selectedPhotos.length === 0) {
+    Alert.alert('Error', 'Please select at least one photo');
+    return;
+  }
+
+  setLoading(true);
+  
+  try {
+    const formData = new FormData();
+
+    for (let i = 0; i < selectedPhotos.length; i++) {
+      const photo = selectedPhotos[i];
+      
+      console.log(`Processing photo ${i + 1}:`, {
+        uri: photo.uri,
+        fileName: photo.fileName,
+        mimeType: photo.mimeType,
+        fileSize: photo.fileSize,
+      });
+      
+      // Use the fileName from the photo object if available
+      const filename = photo.fileName || `photo_${Date.now()}_${i}.jpg`;
+      
+      // Use mimeType from photo object
+      const mimeType = photo.mimeType || 'image/jpeg';
+
+      // React Native FormData expects this exact format
+      formData.append('photos', {
+        uri: photo.uri,
+        name: filename,
+        type: mimeType,
+      } as any);
+      
+      console.log(`Added photo ${i + 1}:`, { filename, mimeType });
+    }
+
+    console.log(`Uploading ${selectedPhotos.length} photo(s) for visit ID: ${selectedVisitForPhotos.id}`);
+
+    // Get the authorization token from apiClient
+    const token = apiClient.defaults.headers.common['Authorization'];
+    
+    // Construct the full URL
+    const uploadUrl = `${apiClient.defaults.baseURL}/api/SiteVisits/${selectedVisitForPhotos.id}/photos`;
+    console.log('Upload URL:', uploadUrl);
+    console.log('Token present:', !!token);
+
+    // Use fetch API for better file upload support
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        ...(token && { 'Authorization': token as string }),
+        // DON'T set Content-Type - let FormData set it with boundary
+      },
+      body: formData,
+    });
+
+    console.log('Upload response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Upload failed:', errorText);
+      throw new Error(`Upload failed with status ${response.status}: ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('Upload response data:', responseData);
+
+    Alert.alert('Success', `${selectedPhotos.length} photo(s) uploaded successfully!`);
+    
+    // Reset state
+    setSelectedPhotos([]);
+    setPhotosData('');
+    setSelectedVisitForPhotos(null);
+    setShowPhase2Modal(false);
+    
+    // Mark as uploaded
+    setUploadedVisitIds(prev => [...prev, selectedVisitForPhotos.id]);
+    
+    // Refresh list
+    await fetchTechnicianVisits();
+
+  } catch (error: any) {
+    console.error('Upload error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    let errorMessage = 'Failed to upload photos. ';
+    
+    if (error.message.includes('Network request failed')) {
+      errorMessage += 'Please check your internet connection.';
+    } else if (error.message.includes('fetch')) {
+      errorMessage += 'Network error. Please try again.';
+    } else {
+      errorMessage += error.message || 'Please try again.';
+    }
+    
+    Alert.alert('Upload Error', errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleOpenPhase2 = (visit: SiteVisit) => {
     setSelectedVisitForPhotos(visit);
@@ -285,6 +428,20 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
       <Text style={styles.formTitle}>📍 Phase 1: Site Location & Cable Details</Text>
 
       <Text style={styles.sectionLabel}>Location Information</Text>
+
+      <TouchableOpacity
+        style={[styles.autoFillButton, locationLoading && styles.buttonDisabled]}
+        onPress={getCurrentLocation}
+        disabled={locationLoading}
+        activeOpacity={0.8}
+      >
+        {locationLoading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.autoFillButtonText}>📍 Auto-fill Current Location</Text>
+        )}
+      </TouchableOpacity>
+
       <TextInput
         style={styles.input}
         placeholder="Latitude"
@@ -581,17 +738,25 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
                 <View style={styles.detailsSection}>
                   <Text style={styles.detailsLabel}>📸 Uploaded Photos ({selectedVisitDetails.photos.length})</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosGallery}>
-                    {selectedVisitDetails.photos.map((photo, index) => (
-                      <View key={index} style={styles.photoGalleryItem}>
-                        <Image
-                          source={{ uri: `https://compassnetwork.runasp.net${photo.photoUrl}` }}
-                          style={styles.photoGalleryImage}
-                        />
-                        <Text style={styles.photoUploadedAt}>
-                          {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
-                        </Text>
-                      </View>
-                    ))}
+                    {selectedVisitDetails.photos.map((photo, index) => {
+                      // Use base64Data if available, otherwise fall back to photoUrl
+                      const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+                      
+                      return (
+                        <View key={index} style={styles.photoGalleryItem}>
+                          <Image
+                            source={{ uri: imageUri }}
+                            style={styles.photoGalleryImage}
+                            onError={(error) => {
+                              console.error('Failed to load image:', error.nativeEvent);
+                            }}
+                          />
+                          <Text style={styles.photoUploadedAt}>
+                            {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </ScrollView>
                 </View>
               )}
@@ -639,14 +804,25 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
             </View>
           )}
 
-          <TouchableOpacity
-            style={[styles.pickPhotosButton, loading && styles.buttonDisabled]}
-            onPress={pickImages}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.pickPhotosButtonText}>📁 Select Photos from Device</Text>
-          </TouchableOpacity>
+          <View style={styles.photoButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.pickPhotosButton, loading && styles.buttonDisabled]}
+              onPress={pickImages}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pickPhotosButtonText}>📁 Select from Gallery</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.cameraButton, loading && styles.buttonDisabled]}
+              onPress={captureImage}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cameraButtonText}>📷 Capture Image</Text>
+            </TouchableOpacity>
+          </View>
 
           {selectedPhotos.length > 0 && (
             <View style={styles.selectedPhotosContainer}>
@@ -1205,13 +1381,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
-    marginBottom: 15,
+    flex: 1,
     borderWidth: 2,
     borderColor: '#1E40AF',
   },
   pickPhotosButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   selectedPhotosContainer: {
@@ -1270,6 +1446,42 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 6,
     fontWeight: '500',
+  },
+  autoFillButton: {
+    backgroundColor: '#06B6D4',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 2,
+    borderColor: '#0891B2',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  autoFillButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  cameraButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#7C3AED',
+  },
+  cameraButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  photoButtonsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 15,
   },
 });
 

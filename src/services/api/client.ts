@@ -1,5 +1,5 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 
 const BASE_URL = 'https://compassnetwork.runasp.net';
 
@@ -9,7 +9,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: BASE_URL,
-      timeout: 10000,
+      timeout: 60000, // Increased timeout for file uploads
       headers: {
         'Content-Type': 'application/json',
       },
@@ -21,6 +21,10 @@ class ApiClient {
         const token = await AsyncStorage.getItem('authToken');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        }
+        // Don't override Content-Type for multipart/form-data
+        if (config.data instanceof FormData) {
+          delete config.headers['Content-Type'];
         }
         return config;
       },

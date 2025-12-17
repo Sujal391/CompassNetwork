@@ -1,18 +1,19 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { apiService } from '@/src/services/api/apiService';
 import { Company, Distributor, DistributorRegisterRequest, SiteVisit, Technician } from '@/src/types';
+import { getImageUri } from '@/src/utils/imageUtils';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export const AdminDashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -449,8 +450,11 @@ export const AdminDashboard: React.FC<{ navigation: any }> = ({ navigation }) =>
                     {selectedVisitDetails.photos.map((photo, index) => (
                       <View key={index} style={styles.photoGalleryItem}>
                         <Image
-                          source={{ uri: `https://compassnetwork.runasp.net${photo.photoUrl}` }}
+                          source={{ uri: getImageUri(photo.photoUrl) }}
                           style={styles.photoGalleryImage}
+                          onError={() => {
+                            console.log('Failed to load image:', photo.photoUrl);
+                          }}
                         />
                         <Text style={styles.photoUploadedAt}>
                           {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
