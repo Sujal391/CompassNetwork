@@ -1,19 +1,19 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { apiService } from '@/src/services/api/apiService';
 import { Company, Distributor, DistributorRegisterRequest, SiteVisit, Technician } from '@/src/types';
-import { getImageUri } from '@/src/utils/imageUtils';
+import { getImageUrl } from '@/src/utils/imageUtils';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export const AdminDashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -280,11 +280,14 @@ export const AdminDashboard: React.FC<{ navigation: any }> = ({ navigation }) =>
               <Text style={styles.distributorEmail}>Distributor ID: {company.distributorId || 'N/A'}</Text>
               <Text style={styles.distributorEmail}>Distributor Name: {company.distributorName || 'N/A'}</Text>
               <Text style={styles.distributorEmail}>
-                Created At: {new Date(company.createdAt).toLocaleDateString('en-IN', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
+                Created At:{' '}
+                {company.createdAt
+                  ? new Date(company.createdAt).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'N/A'}
               </Text>
               <Text style={styles.distributorEmail}>Technician Count: {company.technicianCount}</Text>
               {company.referCode && (
@@ -447,20 +450,25 @@ export const AdminDashboard: React.FC<{ navigation: any }> = ({ navigation }) =>
                 <View style={styles.detailsSection}>
                   <Text style={styles.detailsLabel}>📸 Uploaded Photos ({selectedVisitDetails.photos.length})</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosGallery}>
-                    {selectedVisitDetails.photos.map((photo, index) => (
-                      <View key={index} style={styles.photoGalleryItem}>
-                        <Image
-                          source={{ uri: getImageUri(photo.photoUrl) }}
-                          style={styles.photoGalleryImage}
-                          onError={() => {
-                            console.log('Failed to load image:', photo.photoUrl);
-                          }}
-                        />
-                        <Text style={styles.photoUploadedAt}>
-                          {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
-                        </Text>
-                      </View>
-                    ))}
+                    {selectedVisitDetails.photos.map((photo, index) => {
+                      // Use base64Data if available, otherwise fall back to photoUrl
+                      const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+                      
+                      return (
+                        <View key={index} style={styles.photoGalleryItem}>
+                          <Image
+                            source={{ uri: imageUri }}
+                            style={styles.photoGalleryImage}
+                            onError={(error) => {
+                              console.error('Failed to load image:', error.nativeEvent);
+                            }}
+                          />
+                          <Text style={styles.photoUploadedAt}>
+                            {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </ScrollView>
                 </View>
               )}

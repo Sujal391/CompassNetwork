@@ -82,6 +82,13 @@ export interface Company {
   address: string;
   referCode?: string;
   createdAt?: string;
+  distributorId?: number;
+  distributorName?: string;
+  technicianCount?: number;
+  companyName?: string;
+  companyEmail?: string;
+  companyAddress?: string;
+  base64Data?: string;
 }
 
 // Technician Data (for admin dashboard)

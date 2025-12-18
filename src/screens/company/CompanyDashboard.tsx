@@ -1,21 +1,21 @@
 import { useAuth } from "@/src/context/AuthContext";
 import { apiService } from "@/src/services/api/apiService";
 import { SiteVisit, Technician, TechnicianRegisterRequest } from "@/src/types";
-import { getImageUri } from "@/src/utils/imageUtils";
+import { getImageUrl } from "@/src/utils/imageUtils";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export const CompanyDashboard: React.FC<{ navigation: any }> = ({
@@ -626,39 +626,32 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
                     </View>
                   )}
 
-                {selectedVisitDetails.photos &&
-                  selectedVisitDetails.photos.length > 0 && (
-                    <View style={styles.detailsSection}>
-                      <Text style={styles.detailsLabel}>
-                        📸 Uploaded Photos ({selectedVisitDetails.photos.length}
-                        )
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.photosGallery}
-                      >
-                        {selectedVisitDetails.photos.map((photo, index) => (
-                          <View key={index} style={styles.photoGalleryItem}>
-                            <Image
-                              source={{
-                                uri: getImageUri(photo.photoUrl),
-                              }}
-                              style={styles.photoGalleryImage}
-                              onError={() => {
-                                console.log('Failed to load image:', photo.photoUrl);
-                              }}
-                            />
-                            <Text style={styles.photoUploadedAt}>
-                              {new Date(photo.uploadedAt).toLocaleDateString(
-                                "en-IN"
+                {selectedVisitDetails.photos && selectedVisitDetails.photos.length > 0 && (
+                                <View style={styles.detailsSection}>
+                                  <Text style={styles.detailsLabel}>📸 Uploaded Photos ({selectedVisitDetails.photos.length})</Text>
+                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosGallery}>
+                                    {selectedVisitDetails.photos.map((photo, index) => {
+                                      // Use base64Data if available, otherwise fall back to photoUrl
+                                      const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+                                      
+                                      return (
+                                        <View key={index} style={styles.photoGalleryItem}>
+                                          <Image
+                                            source={{ uri: imageUri }}
+                                            style={styles.photoGalleryImage}
+                                            onError={(error) => {
+                                              console.error('Failed to load image:', error.nativeEvent);
+                                            }}
+                                          />
+                                          <Text style={styles.photoUploadedAt}>
+                                            {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
+                                          </Text>
+                                        </View>
+                                      );
+                                    })}
+                                  </ScrollView>
+                                </View>
                               )}
-                            </Text>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
               </>
             )}
           </ScrollView>
