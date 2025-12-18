@@ -1,6 +1,7 @@
 import { useAuth } from "@/src/context/AuthContext";
 import { apiService } from "@/src/services/api/apiService";
 import { SiteVisit, Technician, TechnicianRegisterRequest } from "@/src/types";
+import { getImageUrl } from "@/src/utils/imageUtils";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
@@ -625,36 +626,32 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
                     </View>
                   )}
 
-                {selectedVisitDetails.photos &&
-                  selectedVisitDetails.photos.length > 0 && (
-                    <View style={styles.detailsSection}>
-                      <Text style={styles.detailsLabel}>
-                        📸 Uploaded Photos ({selectedVisitDetails.photos.length}
-                        )
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.photosGallery}
-                      >
-                        {selectedVisitDetails.photos.map((photo, index) => (
-                          <View key={index} style={styles.photoGalleryItem}>
-                            <Image
-                              source={{
-                                uri: `https://compassnetwork.runasp.net${photo.photoUrl}`,
-                              }}
-                              style={styles.photoGalleryImage}
-                            />
-                            <Text style={styles.photoUploadedAt}>
-                              {new Date(photo.uploadedAt).toLocaleDateString(
-                                "en-IN"
+                {selectedVisitDetails.photos && selectedVisitDetails.photos.length > 0 && (
+                                <View style={styles.detailsSection}>
+                                  <Text style={styles.detailsLabel}>📸 Uploaded Photos ({selectedVisitDetails.photos.length})</Text>
+                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosGallery}>
+                                    {selectedVisitDetails.photos.map((photo, index) => {
+                                      // Use base64Data if available, otherwise fall back to photoUrl
+                                      const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+                                      
+                                      return (
+                                        <View key={index} style={styles.photoGalleryItem}>
+                                          <Image
+                                            source={{ uri: imageUri }}
+                                            style={styles.photoGalleryImage}
+                                            onError={(error) => {
+                                              console.error('Failed to load image:', error.nativeEvent);
+                                            }}
+                                          />
+                                          <Text style={styles.photoUploadedAt}>
+                                            {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
+                                          </Text>
+                                        </View>
+                                      );
+                                    })}
+                                  </ScrollView>
+                                </View>
                               )}
-                            </Text>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
               </>
             )}
           </ScrollView>
@@ -931,11 +928,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
+    paddingHorizontal: 5,
   },
   tab: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 5,
     alignItems: "center",
+    justifyContent: "center",
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
@@ -943,9 +943,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "#10B981",
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#666",
     fontWeight: "500",
+    textAlign: "center",
+    flexWrap: "wrap",
   },
   activeTabText: {
     color: "#10B981",
@@ -1316,6 +1318,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     fontSize: 16,
+    color: "#333",
   },
   eyeIcon: {
     padding: 12,

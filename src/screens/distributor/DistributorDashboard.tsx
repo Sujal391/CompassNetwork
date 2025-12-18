@@ -90,11 +90,16 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
               <Text style={styles.companyEmail}>GST: {company.gstNumber}</Text>
               <Text style={styles.companyEmail}>Address: {company.companyAddress}</Text>
               <Text style={styles.companyEmail}>Technician Count: {company.technicianCount}</Text>
-              <Text style={styles.companyEmail}>Created At: {new Date(company.createdAt).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })}</Text>
+              <Text style={styles.companyEmail}>
+                Created At:{' '}
+                {company.createdAt
+                  ? new Date(company.createdAt).toLocaleDateString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'N/A'}
+              </Text>
               {company.referCode && (
                 <Text style={styles.companyCode}>Code: {company.referCode}</Text>
               )}
