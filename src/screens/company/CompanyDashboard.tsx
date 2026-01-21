@@ -15,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 
@@ -37,6 +38,16 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
     useState<Technician | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+ // Photo preview state
+  const [selectedPhotoForPreview, setSelectedPhotoForPreview] = useState<{
+    uri: string;
+    date: string;
+  } | null>(null);
+  const [showPhotoPreviewModal, setShowPhotoPreviewModal] = useState(false);
+  
+  // Loading state for details modal
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Registration form state
   const [formData, setFormData] = useState({
@@ -99,24 +110,29 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
   };
 
   const handleViewDetails = async (visitId: number) => {
+    // Open modal immediately
+    setShowDetailsModal(true);
+    setDetailsLoading(true);
+    
     try {
-      setLoading(true);
       const details = await apiService.getSiteVisitById(visitId, user?.id);
       setSelectedVisitDetails(details);
-      setShowDetailsModal(true);
     } catch (error: any) {
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to fetch visit details"
       );
+      // Close modal on error
+      setShowDetailsModal(false);
     } finally {
-      setLoading(false);
+      setDetailsLoading(false);
     }
   };
 
   const handleCloseDetails = () => {
     setShowDetailsModal(false);
     setSelectedVisitDetails(null);
+    setDetailsLoading(false);
   };
 
   const handleRegisterTechnician = async () => {
@@ -174,8 +190,21 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigation.replace("/landing");
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Logout", 
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+            navigation.replace("/landing");
+          }
+        }
+      ]
+    );
   };
 
   const updateField = (field: keyof typeof formData, value: string) => {
@@ -264,7 +293,6 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
       [
         {
           text: "Cancel",
-          onPress: () => {},
           style: "cancel",
         },
         {
@@ -300,118 +328,178 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
     }
   };
 
+  // Photo preview functions
+  const handleOpenPhotoPreview = (photo: any) => {
+    const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+    const photoDate = new Date(photo.uploadedAt).toLocaleDateString('en-IN');
+    
+    setSelectedPhotoForPreview({
+      uri: imageUri,
+      date: photoDate
+    });
+    setShowPhotoPreviewModal(true);
+  };
+
+  const handleClosePhotoPreview = () => {
+    setShowPhotoPreviewModal(false);
+    setSelectedPhotoForPreview(null);
+  };
+
   const renderRegisterForm = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>Register New Technician</Text>
+    <View style={styles.content}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Register New Technician</Text>
+        <Text style={styles.sectionSubtitle}>Add new technician to your company</Text>
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        value={formData.name}
-        onChangeText={(value) => updateField("name", value)}
-        editable={!loading}
-      />
+      <View style={styles.formCard}>
+        <Text style={styles.inputLabel}>Full Name *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter technician's full name"
+          placeholderTextColor="#999"
+          value={formData.name}
+          onChangeText={(value) => updateField("name", value)}
+          editable={!loading}
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={formData.email}
-        onChangeText={(value) => updateField("email", value)}
-        editable={!loading}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
+        <Text style={styles.inputLabel}>Email Address *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter email address"
+          placeholderTextColor="#999"
+          value={formData.email}
+          onChangeText={(value) => updateField("email", value)}
+          editable={!loading}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Mobile Number"
-        value={formData.mobileNumber}
-        onChangeText={(value) => updateField("mobileNumber", value)}
-        editable={!loading}
-        keyboardType="phone-pad"
-      />
+        <Text style={styles.inputLabel}>Mobile Number *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter mobile number"
+          placeholderTextColor="#999"
+          value={formData.mobileNumber}
+          onChangeText={(value) => updateField("mobileNumber", value)}
+          editable={!loading}
+          keyboardType="phone-pad"
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={formData.password}
-        onChangeText={(value) => updateField("password", value)}
-        editable={!loading}
-        secureTextEntry
-      />
+        <Text style={styles.inputLabel}>Password *</Text>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Enter password"
+            placeholderTextColor="#999"
+            value={formData.password}
+            onChangeText={(value) => updateField("password", value)}
+            editable={!loading}
+            secureTextEntry
+          />
+        </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        value={formData.confirmPassword}
-        onChangeText={(value) => updateField("confirmPassword", value)}
-        editable={!loading}
-        secureTextEntry
-      />
+        <Text style={styles.inputLabel}>Confirm Password *</Text>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Confirm password"
+            placeholderTextColor="#999"
+            value={formData.confirmPassword}
+            onChangeText={(value) => updateField("confirmPassword", value)}
+            editable={!loading}
+            secureTextEntry
+          />
+        </View>
 
-      <TouchableOpacity
-        style={[styles.registerButton, loading && styles.buttonDisabled]}
-        onPress={handleRegisterTechnician}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.registerButtonText}>Register Technician</Text>
-        )}
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.submitButton, loading && styles.disabled]}
+          onPress={handleRegisterTechnician}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="person-add-outline" size={20} color="#fff" />
+              <Text style={styles.submitButtonText}>Register Technician</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   const renderTechniciansList = () => (
     <View style={styles.listContainer}>
-      <Text style={styles.listTitle}>My Technicians</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>My Technicians</Text>
+        <Text style={styles.sectionSubtitle}>{technicians.length} technician{technicians.length !== 1 ? 's' : ''} registered</Text>
+      </View>
 
       {refreshing ? (
-        <ActivityIndicator size="large" color="#10B981" style={styles.loader} />
+        <ActivityIndicator size="large" color="#FF9500" style={styles.loader} />
       ) : technicians.length === 0 ? (
-        <Text style={styles.emptyText}>No technicians registered yet</Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="people-outline" size={64} color="#C7C7CC" />
+          <Text style={styles.emptyStateTitle}>No technicians yet</Text>
+          <Text style={styles.emptyStateText}>Register your first technician to get started</Text>
+        </View>
       ) : (
         technicians.map((technician) => (
           <View key={technician.id} style={styles.technicianCard}>
-            <View style={styles.technicianInfo}>
-              <Text style={styles.technicianName}>Name: {technician.name}</Text>
-              <Text style={styles.technicianEmail}>
-                Email: {technician.email}
-              </Text>
-              <Text style={styles.technicianPhone}>
-                Phone: {technician.mobileNumber}
-              </Text>
-              <Text style={styles.technicianPhone}>
-                Created At:{" "}
-                {technician?.createdAt
-                  ? new Date(technician.createdAt).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "--"}
-              </Text>
-              {technician.referCode && (
-                <Text style={styles.technicianCode}>
-                  Code: {technician.referCode}
-                </Text>
-              )}
+            <View style={styles.technicianHeader}>
+              <View style={styles.technicianIcon}>
+                <Ionicons name="person-circle-outline" size={24} color="#FF9500" />
+              </View>
+              <View style={styles.technicianInfo}>
+                <Text style={styles.technicianName}>{technician.name}</Text>
+                <Text style={styles.technicianEmail}>{technician.email}</Text>
+              </View>
             </View>
+            
+            <View style={styles.divider} />
+            
+            <View style={styles.technicianDetails}>
+              <View style={styles.detailRow}>
+                <Ionicons name="call-outline" size={16} color="#8E8E93" />
+                <Text style={styles.detailText}>{technician.mobileNumber}</Text>
+              </View>
+              
+              {technician.referCode && (
+                <View style={styles.referCodeContainer}>
+                  <Text style={styles.referCodeLabel}>Referral Code:</Text>
+                  <View style={styles.referCodeBadge}>
+                    <Text style={styles.referCodeText}>{technician.referCode}</Text>
+                  </View>
+                </View>
+              )}
+              
+              <View style={styles.detailRow}>
+                <Ionicons name="calendar-outline" size={16} color="#8E8E93" />
+                <Text style={styles.detailText}>
+                  Joined: {technician.createdAt ? new Date(technician.createdAt).toLocaleDateString('en-IN') : 'N/A'}
+                </Text>
+              </View>
+            </View>
+            
             <View style={styles.technicianActions}>
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => handleEditTechnician(technician)}
                 disabled={loading}
               >
-                <Text style={styles.editButtonText}>✏️ Edit</Text>
+                <Ionicons name="create-outline" size={18} color="#007AFF" />
+                <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleDeleteTechnician(technician)}
                 disabled={loading}
               >
-                <Text style={styles.deleteButtonText}>🗑️ Delete</Text>
+                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                <Text style={styles.deleteButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -422,42 +510,56 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
 
   const renderSiteVisitsList = () => (
     <View style={styles.listContainer}>
-      <Text style={styles.listTitle}>Site Visits</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Site Visits</Text>
+        <Text style={styles.sectionSubtitle}>{siteVisits.length} visit{siteVisits.length !== 1 ? 's' : ''} recorded</Text>
+      </View>
 
       {refreshing ? (
-        <ActivityIndicator size="large" color="#10B981" style={styles.loader} />
+        <ActivityIndicator size="large" color="#FF9500" style={styles.loader} />
       ) : siteVisits.length === 0 ? (
-        <Text style={styles.emptyText}>No site visits recorded yet</Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="document-outline" size={64} color="#C7C7CC" />
+          <Text style={styles.emptyStateTitle}>No visits yet</Text>
+          <Text style={styles.emptyStateText}>Technicians will appear here once they start visiting sites</Text>
+        </View>
       ) : (
         siteVisits.map((visit) => (
           <View key={visit.id} style={styles.visitCard}>
-            <View style={styles.visitInfo}>
-              <Text style={styles.visitName}>
-                {visit.houseNo || "Site Name"}
-              </Text>
-              <Text style={styles.visitAddress}>
-                Address: {visit.houseNo}, {visit.street}, {visit.landmark},{" "}
-                {visit.area}
-              </Text>
-              <Text style={styles.techName}>
-                Technician: {visit.technicianName}
-              </Text>
-              {/* <Text style={styles.technicianName}>{visit.technicianName}</Text> */}
-              <Text style={styles.visitDate}>
-                Date:{" "}
-                {new Date(visit.visitDateTime).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </Text>
-              {/* <Text style={styles.visitStatus}>Status: {visit.visitStatus}</Text> */}
+            <View style={styles.visitHeader}>
+              <View style={styles.visitNumber}>
+                <Text style={styles.visitNumberText}>#{siteVisits.indexOf(visit) + 1}</Text>
+              </View>
+              <View style={styles.visitDateBadge}>
+                <Text style={styles.visitDateText}>
+                  {new Date(visit.visitDateTime).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short'
+                  })}
+                </Text>
+              </View>
             </View>
+            
+            <Text style={styles.visitAddress}>{visit.houseNo}</Text>
+            
+            <View style={styles.visitInfo}>
+              <Ionicons name="location-outline" size={16} color="#666" />
+              <Text style={styles.visitInfoText}>
+                {visit.street}, {visit.area}
+              </Text>
+            </View>
+            
+            <View style={styles.visitInfo}>
+              <Ionicons name="person-outline" size={16} color="#666" />
+              <Text style={styles.visitInfoText}>{visit.technicianName}</Text>
+            </View>
+            
             <TouchableOpacity
-              style={styles.viewButton}
+              style={styles.viewDetailsButton}
               onPress={() => handleViewDetails(visit.id)}
             >
-              <Text style={styles.viewButtonText}>👁️ View Details</Text>
+              <Ionicons name="eye-outline" size={16} color="#007AFF" />
+              <Text style={styles.viewDetailsButtonText}>View Details</Text>
             </TouchableOpacity>
           </View>
         ))
@@ -465,203 +567,239 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
     </View>
   );
 
+  const renderPhotoPreviewModal = () => (
+    <Modal
+      visible={showPhotoPreviewModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={handleClosePhotoPreview}
+    >
+      <TouchableWithoutFeedback onPress={handleClosePhotoPreview}>
+        <View style={styles.photoPreviewOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.photoPreviewContainer}>
+              {selectedPhotoForPreview && (
+                <>
+                  <Image
+                    source={{ uri: selectedPhotoForPreview.uri }}
+                    style={styles.photoPreviewImage}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.photoPreviewHeader}>
+                    <Text style={styles.photoPreviewDate}>
+                      Uploaded: {selectedPhotoForPreview.date}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.photoPreviewCloseButton}
+                      onPress={handleClosePhotoPreview}
+                    >
+                      <Ionicons name="close" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
   const renderDetailsModal = () => (
     <Modal
       visible={showDetailsModal}
-      transparent
       animationType="slide"
-      onRequestClose={handleCloseDetails}
+      transparent={true}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Site Visit Details</Text>
-            <TouchableOpacity onPress={handleCloseDetails}>
-              <Text style={styles.closeButton}>✕</Text>
+            <Text style={styles.modalTitle}>Visit Details</Text>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={handleCloseDetails}
+            >
+              <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.detailsScroll}>
-            {selectedVisitDetails && (
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {detailsLoading ? (
+              // Skeleton Loader
+              <View style={styles.skeletonContainer}>
+                {/* Location Section Skeleton */}
+                <View style={styles.skeletonSection}>
+                  <View style={styles.skeletonTitle} />
+                  <View style={styles.skeletonGrid}>
+                    {[...Array(7)].map((_, i) => (
+                      <View key={i} style={styles.skeletonItem}>
+                        <View style={styles.skeletonLabel} />
+                        <View style={styles.skeletonValue} />
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.skeletonCoordinates}>
+                    <View style={styles.skeletonCoordinate} />
+                    <View style={styles.skeletonDivider} />
+                    <View style={styles.skeletonCoordinate} />
+                  </View>
+                </View>
+
+                {/* Technician Section Skeleton */}
+                <View style={styles.skeletonSection}>
+                  <View style={styles.skeletonTitle} />
+                  <View style={styles.skeletonTechnicianCard} />
+                </View>
+
+                {/* Cable Connections Skeleton */}
+                <View style={styles.skeletonSection}>
+                  <View style={styles.skeletonTitle} />
+                  {[...Array(2)].map((_, i) => (
+                    <View key={i} style={styles.skeletonCableDetail}>
+                      <View style={styles.skeletonCableHeader} />
+                      <View style={styles.skeletonCableFlow} />
+                    </View>
+                  ))}
+                </View>
+
+                {/* Photos Section Skeleton */}
+                <View style={styles.skeletonSection}>
+                  <View style={styles.skeletonTitle} />
+                  <View style={styles.skeletonPhotos}>
+                    {[...Array(3)].map((_, i) => (
+                      <View key={i} style={styles.skeletonPhotoContainer}>
+                        <View style={styles.skeletonPhoto} />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : selectedVisitDetails && (
               <>
-                <View style={styles.detailsSection}>
-                  <Text style={styles.detailsLabel}>Location Information</Text>
-                  <View style={styles.detailsRow}>
-                    <Text style={styles.detailsKey}>Site Name:</Text>
-                    <Text style={styles.detailsValue}>
-                      {selectedVisitDetails.houseNo}
-                    </Text>
+                {/* Location Details */}
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Location</Text>
+                  <View style={styles.detailGrid}>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>House No</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.houseNo}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Street</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.street}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Area</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.area}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Landmark</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.landmark || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>City</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.city}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>State</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.state}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Pincode</Text>
+                      <Text style={styles.detailValue}>{selectedVisitDetails.pincode}</Text>
+                    </View>
                   </View>
-                  {/* {selectedVisitDetails.houseNo && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Address:</Text>
-                      <Text style={styles.detailsValue}>{selectedVisitDetails.houseNo}, {selectedVisitDetails.street}, {selectedVisitDetails.landmark}, {selectedVisitDetails.area}</Text>
+                  
+                  <View style={styles.coordinates}>
+                    <View style={styles.coordinate}>
+                      <Text style={styles.coordinateLabel}>Latitude</Text>
+                      <Text style={styles.coordinateValue}>{selectedVisitDetails.latitude}</Text>
                     </View>
-                  )} */}
-                  {selectedVisitDetails.area && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Area:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.area}
-                      </Text>
+                    <View style={styles.coordinateDivider} />
+                    <View style={styles.coordinate}>
+                      <Text style={styles.coordinateLabel}>Longitude</Text>
+                      <Text style={styles.coordinateValue}>{selectedVisitDetails.longitude}</Text>
                     </View>
-                  )}
-                  {selectedVisitDetails.street && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Street:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.street}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedVisitDetails.landmark && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Landmark:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.landmark}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedVisitDetails.city && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>City:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.city}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedVisitDetails.state && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>State:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.state}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedVisitDetails.pincode && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Pincode:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.pincode}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedVisitDetails.latitude && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Latitude:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.latitude}
-                      </Text>
-                    </View>
-                  )}
-                  {selectedVisitDetails.longitude && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.detailsKey}>Longitude:</Text>
-                      <Text style={styles.detailsValue}>
-                        {selectedVisitDetails.longitude}
-                      </Text>
-                    </View>
-                  )}
+                  </View>
                 </View>
 
-                <View style={styles.detailsSection}>
-                  <Text style={styles.detailsLabel}>Visit Information</Text>
-                  <View style={styles.detailsRow}>
-                    <Text style={styles.detailsKey}>Date:</Text>
-                    <Text style={styles.detailsValue}>
-                      {new Date(
-                        selectedVisitDetails.visitDateTime
-                      ).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </Text>
+                {/* Technician Details */}
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Technician</Text>
+                  <View style={styles.technicianDetailCard}>
+                    <Ionicons name="person-circle-outline" size={20} color="#FF9500" />
+                    <Text style={styles.technicianDetailName}>{selectedVisitDetails.technicianName}</Text>
                   </View>
-                  <View style={styles.detailsRow}>
-                    <Text style={styles.detailsKey}>Time:</Text>
-                    <Text style={styles.detailsValue}>
-                      {new Date(
-                        selectedVisitDetails.visitDateTime
-                      ).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })}
-                    </Text>
-                  </View>
-                  {/* <View style={styles.detailsRow}>
-                    <Text style={styles.detailsKey}>Reason:</Text>
-                    <Text style={styles.detailsValue}>{selectedVisitDetails.visitReason}</Text>
-                  </View>
-                  <View style={styles.detailsRow}>
-                    <Text style={styles.detailsKey}>Status:</Text>
-                    <Text style={styles.detailsValue}>{selectedVisitDetails.visitStatus}</Text>
-                  </View> */}
-                  {/* <View style={styles.detailsRow}>
-                    <Text style={styles.detailsKey}>Remarks:</Text>
-                    <Text style={styles.detailsValue}>{selectedVisitDetails.visitRemarks || 'N/A'}</Text>
-                  </View> */}
                 </View>
 
-                {selectedVisitDetails.cableConnections &&
-                  selectedVisitDetails.cableConnections.length > 0 && (
-                    <View style={styles.detailsSection}>
-                      <Text style={styles.detailsLabel}>Cable Connections</Text>
-                      {selectedVisitDetails.cableConnections.map(
-                        (cable, index) => (
-                          <View key={index} style={styles.cableDetailsItem}>
-                            <Text style={styles.cableDetailText}>
-                              Core #{cable.coreNumber}
-                            </Text>
-                            <Text style={styles.cableDetailText}>
-                              {cable.fromColor} → {cable.toColor}
-                            </Text>
-                            <Text style={styles.cableDetailText}>
-                              Reason: {cable.reason}
-                            </Text>
+                {/* Cable Connections */}
+                {selectedVisitDetails.cableConnections && selectedVisitDetails.cableConnections.length > 0 && (
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>
+                      Cable Connections ({selectedVisitDetails.cableConnections.length})
+                    </Text>
+                    {selectedVisitDetails.cableConnections.map((cable, index) => (
+                      <View key={index} style={styles.cableDetail}>
+                        <View style={styles.cableDetailHeader}>
+                          <Text style={styles.cableDetailTitle}>Core {cable.coreNumber}</Text>
+                        </View>
+                        <View style={styles.cableDetailContent}>
+                          <View style={styles.cableFlow}>
+                            <View style={styles.colorBox}>
+                              <Text style={styles.colorLabel}>From</Text>
+                              <Text style={styles.colorValue}>{cable.fromColor}</Text>
+                            </View>
+                            <Ionicons name="arrow-forward" size={20} color="#666" />
+                            <View style={styles.colorBox}>
+                              <Text style={styles.colorLabel}>To</Text>
+                              <Text style={styles.colorValue}>{cable.toColor}</Text>
+                            </View>
                           </View>
-                        )
-                      )}
-                    </View>
-                  )}
+                          <Text style={styles.reasonText}>{cable.reason}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
+                {/* Photos */}
                 {selectedVisitDetails.photos && selectedVisitDetails.photos.length > 0 && (
-                                <View style={styles.detailsSection}>
-                                  <Text style={styles.detailsLabel}>📸 Uploaded Photos ({selectedVisitDetails.photos.length})</Text>
-                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosGallery}>
-                                    {selectedVisitDetails.photos.map((photo, index) => {
-                                      // Use base64Data if available, otherwise fall back to photoUrl
-                                      const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
-                                      
-                                      return (
-                                        <View key={index} style={styles.photoGalleryItem}>
-                                          <Image
-                                            source={{ uri: imageUri }}
-                                            style={styles.photoGalleryImage}
-                                            onError={(error) => {
-                                              console.error('Failed to load image:', error.nativeEvent);
-                                            }}
-                                          />
-                                          <Text style={styles.photoUploadedAt}>
-                                            {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
-                                          </Text>
-                                        </View>
-                                      );
-                                    })}
-                                  </ScrollView>
-                                </View>
-                              )}
+                  <View style={styles.modalSection}>
+                    <View style={styles.photosSectionHeader}>
+                      <Text style={styles.modalSectionTitle}>
+                        Photos ({selectedVisitDetails.photos.length})
+                      </Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {selectedVisitDetails.photos.map((photo, index) => {
+                        const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+                        const photoDate = new Date(photo.uploadedAt).toLocaleDateString('en-IN');
+                        
+                        return (
+                          <TouchableOpacity
+                            key={index}
+                            style={styles.photoContainer}
+                            onPress={() => handleOpenPhotoPreview(photo)}
+                            activeOpacity={0.8}
+                          >
+                            <Image
+                              source={{ uri: imageUri }}
+                              style={styles.photo}
+                              onError={(error) => console.error('Failed to load image:', error.nativeEvent)}
+                            />
+                            <View style={styles.photoInfo}>
+                              <Text style={styles.photoIndex}>#{index + 1}</Text>
+                              <Text style={styles.photoDate}>{photoDate}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
               </>
             )}
           </ScrollView>
-
-          <TouchableOpacity
-            style={styles.closeModalButton}
-            onPress={handleCloseDetails}
-          >
-            <Text style={styles.closeModalButtonText}>Close</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -670,151 +808,131 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
   const renderEditModal = () => (
     <Modal
       visible={showEditModal}
-      transparent
       animationType="slide"
-      onRequestClose={handleCloseEditModal}
+      transparent={true}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Edit Technician</Text>
-            <TouchableOpacity onPress={handleCloseEditModal}>
-              <Text style={styles.closeButton}>✕</Text>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={handleCloseEditModal}
+            >
+              <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.detailsScroll}>
-            <View style={styles.formContainer}>
-              {/* Full Name Field */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your full name"
-                  value={editFormData.name}
-                  onChangeText={(value) => updateEditField("name", value)}
-                  editable={!loading}
-                />
-              </View>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.editFormCard}>
+              <Text style={styles.inputLabel}>Full Name *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter technician's full name"
+                placeholderTextColor="#999"
+                value={editFormData.name}
+                onChangeText={(value) => updateEditField("name", value)}
+                editable={!loading}
+              />
 
-              {/* Email Field */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Email Address</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  value={editFormData.email}
-                  onChangeText={(value) => updateEditField("email", value)}
-                  editable={!loading}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
+              <Text style={styles.inputLabel}>Email Address *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter email address"
+                placeholderTextColor="#999"
+                value={editFormData.email}
+                onChangeText={(value) => updateEditField("email", value)}
+                editable={!loading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
 
-              {/* Mobile Number Field */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Mobile Number</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your mobile number"
-                  value={editFormData.mobileNumber}
-                  onChangeText={(value) =>
-                    updateEditField("mobileNumber", value)
-                  }
-                  editable={!loading}
-                  keyboardType="phone-pad"
-                />
-              </View>
+              <Text style={styles.inputLabel}>Mobile Number *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter mobile number"
+                placeholderTextColor="#999"
+                value={editFormData.mobileNumber}
+                onChangeText={(value) => updateEditField("mobileNumber", value)}
+                editable={!loading}
+                keyboardType="phone-pad"
+              />
 
-              {/* Password Section Divider */}
               <View style={styles.sectionDivider}>
-                <Text style={styles.sectionTitle}>
-                  Change Password (Optional)
-                </Text>
-                <Text style={styles.passwordNote}>
-                  Leave password fields empty to keep your current password
-                </Text>
+                <Text style={styles.sectionDividerTitle}>Change Password (Optional)</Text>
+                <Text style={styles.sectionDividerSubtitle}>Leave password fields empty to keep current password</Text>
               </View>
 
-              {/* New Password Field */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>New Password</Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    style={styles.passwordInput}
-                    placeholder="Enter new password"
-                    value={editFormData.password}
-                    onChangeText={(value) => updateEditField("password", value)}
-                    editable={!loading}
-                    secureTextEntry={!showPassword}
+              <Text style={styles.inputLabel}>New Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Enter new password"
+                  placeholderTextColor="#999"
+                  value={editFormData.password}
+                  onChangeText={(value) => updateEditField("password", value)}
+                  editable={!loading}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#999"
                   />
-                  <TouchableOpacity
-                    style={styles.eyeIcon}
-                    onPress={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    <Ionicons
-                      name={showPassword ? "eye-off-outline" : "eye-outline"}
-                      size={24}
-                      color="#666"
-                    />
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               </View>
 
-              {/* Confirm Password Field */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Confirm Password</Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    style={styles.passwordInput}
-                    placeholder="Confirm new password"
-                    value={editFormData.confirmPassword}
-                    onChangeText={(value) =>
-                      updateEditField("confirmPassword", value)
-                    }
-                    editable={!loading}
-                    secureTextEntry={!showConfirmPassword}
+              <Text style={styles.inputLabel}>Confirm Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Confirm new password"
+                  placeholderTextColor="#999"
+                  value={editFormData.confirmPassword}
+                  onChangeText={(value) => updateEditField("confirmPassword", value)}
+                  editable={!loading}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={loading}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#999"
                   />
-                  <TouchableOpacity
-                    style={styles.eyeIcon}
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    disabled={loading}
-                  >
-                    <Ionicons
-                      name={
-                        showConfirmPassword ? "eye-off-outline" : "eye-outline"
-                      }
-                      size={24}
-                      color="#666"
-                    />
-                  </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
 
-          <View style={styles.modalButtonContainer}>
+          <View style={styles.modalActions}>
             <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
+              style={styles.cancelButton}
               onPress={handleCloseEditModal}
               disabled={loading}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.modalButton,
-                styles.saveButton,
-                loading && styles.buttonDisabled,
-              ]}
+              style={[styles.saveButton, loading && styles.disabled]}
               onPress={handleSaveEditTechnician}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.saveButtonText}>Save Changes</Text>
+                <>
+                  <Ionicons name="save-outline" size={20} color="#fff" />
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -825,79 +943,104 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Welcome, {user?.name || "Company"}!</Text>
-        <Text style={styles.role}>Company Account</Text>
+        <View>
+          <Text style={styles.welcome}>Welcome back</Text>
+          <Text style={styles.userName}>{user?.companyName || "Company"}</Text>
+        </View>
+        <TouchableOpacity style={styles.logout} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={22} color="#FF9500" />
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.tabContainer}>
+      {/* Tab Bar */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === "register" && styles.activeTab]}
           onPress={() => setActiveTab("register")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "register" && styles.activeTabText,
-            ]}
-          >
-            Register Technician
+          <Ionicons 
+            name="person-add-outline" 
+            size={20} 
+            color={activeTab === "register" ? "#FF9500" : "#8E8E93"} 
+          />
+          <Text style={[styles.tabText, activeTab === "register" && styles.activeTabText]}>
+            Register
           </Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles.tab, activeTab === "technicians" && styles.activeTab]}
           onPress={() => setActiveTab("technicians")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "technicians" && styles.activeTabText,
-            ]}
-          >
-            Technicians
+          <Ionicons 
+            name="people-outline" 
+            size={20} 
+            color={activeTab === "technicians" ? "#FF9500" : "#8E8E93"} 
+          />
+          <Text style={[styles.tabText, activeTab === "technicians" && styles.activeTabText]}>
+            Technicians ({technicians.length})
           </Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles.tab, activeTab === "siteVisits" && styles.activeTab]}
           onPress={() => setActiveTab("siteVisits")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "siteVisits" && styles.activeTabText,
-            ]}
-          >
-            Site Visits
+          <Ionicons 
+            name="document-text-outline" 
+            size={20} 
+            color={activeTab === "siteVisits" ? "#FF9500" : "#8E8E93"} 
+          />
+          <Text style={[styles.tabText, activeTab === "siteVisits" && styles.activeTabText]}>
+            Visits ({siteVisits.length})
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollContent}
-        refreshControl={
-          activeTab !== "register" ? (
+      {/* Content */}
+      {activeTab === "register" && (
+        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {renderRegisterForm()}
+        </ScrollView>
+      )}
+      
+      {activeTab === "technicians" && (
+        <ScrollView
+          style={styles.scrollContent}
+          refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={
-                activeTab === "technicians"
-                  ? fetchCompanyTechnicians
-                  : fetchCompanySiteVisits
-              }
+              onRefresh={fetchCompanyTechnicians}
+              tintColor="#FF9500"
             />
-          ) : undefined
-        }
-      >
-        {activeTab === "register" && renderRegisterForm()}
-        {activeTab === "technicians" && renderTechniciansList()}
-        {activeTab === "siteVisits" && renderSiteVisitsList()}
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {renderTechniciansList()}
+        </ScrollView>
+      )}
+      
+      {activeTab === "siteVisits" && (
+        <ScrollView
+          style={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={fetchCompanySiteVisits}
+              tintColor="#FF9500"
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {renderSiteVisitsList()}
+        </ScrollView>
+      )}
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {showDetailsModal && renderDetailsModal()}
-      {showEditModal && renderEditModal()}
+      {renderDetailsModal()}
+      {renderEditModal()}
+      {renderPhotoPreviewModal()}
     </View>
   );
 };
@@ -905,440 +1048,720 @@ export const CompanyDashboard: React.FC<{ navigation: any }> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F8F9FA",
   },
   header: {
-    backgroundColor: "#10B981",
-    padding: 20,
-    paddingTop: 40,
-    paddingBottom: 30,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 5,
-  },
-  role: {
-    fontSize: 14,
-    color: "#D1FAE5",
-  },
-  tabContainer: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
     flexDirection: "row",
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-    paddingHorizontal: 5,
+    borderBottomColor: "#E5E5EA",
+  },
+  welcome: {
+    fontSize: 14,
+    color: "#8E8E93",
+    marginBottom: 2,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1D1D1F",
+  },
+  logout: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F2F2F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5EA",
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 5,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    paddingVertical: 14,
+    gap: 8,
   },
   activeTab: {
-    borderBottomColor: "#10B981",
+    borderBottomWidth: 2,
+    borderBottomColor: "#FF9500",
   },
   tabText: {
-    fontSize: 12,
-    color: "#666",
+    fontSize: 14,
     fontWeight: "500",
-    textAlign: "center",
-    flexWrap: "wrap",
+    color: "#8E8E93",
   },
   activeTabText: {
-    color: "#10B981",
+    color: "#FF9500",
     fontWeight: "600",
   },
   scrollContent: {
     flex: 1,
   },
-  formContainer: {
-    padding: 10,
+  content: {
+    padding: 20,
   },
-  formTitle: {
-    fontSize: 20,
+  sectionHeader: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1D1D1F",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: "#8E8E93",
+  },
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  editFormCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  inputLabel: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
+    color: "#1D1D1F",
+    marginBottom: 6,
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: "#F8F9FA",
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 5,
-    fontSize: 16,
+    padding: 12,
+    fontSize: 15,
+    color: "#1D1D1F",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#E5E5EA",
+    marginBottom: 16,
   },
-  registerButton: {
-    backgroundColor: "#10B981",
+  passwordContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F8F9FA",
     borderRadius: 8,
-    padding: 15,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+    marginBottom: 16,
     alignItems: "center",
-    marginTop: 10,
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 15,
+    color: "#1D1D1F",
   },
-  registerButtonText: {
-    color: "#fff",
+  eyeIcon: {
+    padding: 12,
+  },
+  sectionDivider: {
+    marginTop: 8,
+    marginBottom: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5EA",
+  },
+  sectionDividerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1D1D1F",
+    marginBottom: 4,
+  },
+  sectionDividerSubtitle: {
+    fontSize: 13,
+    color: "#8E8E93",
+    marginBottom: 12,
+  },
+  submitButton: {
+    flexDirection: "row",
+    backgroundColor: "#FF9500",
+    borderRadius: 10,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    gap: 8,
+  },
+  submitButtonText: {
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+  disabled: {
+    opacity: 0.5,
   },
   listContainer: {
     padding: 20,
   },
-  listTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
-  },
   loader: {
-    marginTop: 20,
+    marginTop: 60,
   },
-  emptyText: {
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 48,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1D1D1F",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#8E8E93",
     textAlign: "center",
-    color: "#999",
-    fontSize: 16,
-    marginTop: 20,
+    lineHeight: 20,
   },
   technicianCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 15,
+    padding: 16,
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  technicianHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  technicianIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 149, 0, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
   technicianInfo: {
     flex: 1,
   },
   technicianName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 5,
+    color: "#1D1D1F",
+    marginBottom: 2,
   },
   technicianEmail: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 3,
+    color: "#8E8E93",
   },
-  technicianPhone: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 3,
+  divider: {
+    height: 1,
+    backgroundColor: "#E5E5EA",
+    marginBottom: 12,
   },
-  technicianCode: {
+  technicianDetails: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  detailText: {
     fontSize: 14,
-    color: "#10B981",
+    color: "#1D1D1F",
+  },
+  referCodeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  referCodeLabel: {
+    fontSize: 14,
+    color: "#8E8E93",
+  },
+  referCodeBadge: {
+    backgroundColor: "rgba(255, 149, 0, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  referCodeText: {
+    fontSize: 13,
+    color: "#FF9500",
     fontWeight: "500",
-    marginTop: 5,
+  },
+  technicianActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  editButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#F2F2F7",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+  deleteButton: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FF3B30",
   },
   visitCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 15,
+    padding: 16,
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  visitHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
   },
-  visitInfo: {
-    flex: 1,
+  visitNumber: {
+    backgroundColor: "rgba(255, 149, 0, 0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  visitName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 5,
-  },
-  visitAddress: {
+  visitNumberText: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 3,
+    fontWeight: "700",
+    color: "#FF9500",
   },
-  techName: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 3,
+  visitDateBadge: {
+    backgroundColor: "#F2F2F7",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  visitDate: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 3,
-  },
-  visitStatus: {
-    fontSize: 14,
-    color: "#10B981",
-    fontWeight: "500",
-    marginTop: 5,
-  },
-  viewButton: {
-    backgroundColor: "#3498db",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginLeft: 10,
-  },
-  viewButtonText: {
-    color: "#fff",
+  visitDateText: {
     fontSize: 12,
     fontWeight: "600",
+    color: "#8E8E93",
+  },
+  visitAddress: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1D1D1F",
+    marginBottom: 12,
+  },
+  visitInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  visitInfoText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  viewDetailsButton: {
+    flexDirection: "row",
+    backgroundColor: "#F2F2F7",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  viewDetailsButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: "90%",
-    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#E5E5EA",
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1D1D1F",
   },
-  closeButton: {
-    fontSize: 24,
-    color: "#999",
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F2F2F7",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  detailsScroll: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  modalContent: {
+    padding: 20,
   },
-  detailsSection: {
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5EA",
   },
-  detailsLabel: {
+  cancelButton: {
+    flex: 1,
+    backgroundColor: "#F2F2F7",
+    borderRadius: 10,
+    padding: 16,
+    alignItems: "center",
+  },
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#10B981",
-    marginBottom: 10,
+    color: "#1D1D1F",
   },
-  detailsRow: {
+  saveButton: {
+    flex: 1,
     flexDirection: "row",
+    backgroundColor: "#FF9500",
+    borderRadius: 10,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  saveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  modalSection: {
+    marginBottom: 24,
+  },
+  photosSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1D1D1F",
+    marginBottom: 16,
+  },
+  detailGrid: {
+    gap: 12,
+  },
+  detailItem: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    padding: 12,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#8E8E93",
     marginBottom: 4,
   },
-  detailsKey: {
+  detailValue: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#666",
-    width: "40%",
+    fontWeight: "600",
+    color: "#1D1D1F",
   },
-  detailsValue: {
-    fontSize: 14,
-    color: "#333",
+  coordinates: {
+    flexDirection: "row",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  coordinate: {
     flex: 1,
-    fontWeight: "500",
+    alignItems: "center",
   },
-  cableDetailsItem: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: "#10B981",
+  coordinateDivider: {
+    width: 1,
+    backgroundColor: "#E5E5EA",
+    marginHorizontal: 16,
   },
-  cableDetailText: {
+  coordinateLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#8E8E93",
+    marginBottom: 4,
+  },
+  coordinateValue: {
     fontSize: 13,
-    color: "#333",
-    marginBottom: 3,
+    fontWeight: "700",
+    color: "#FF9500",
   },
-  closeModalButton: {
-    backgroundColor: "#10B981",
-    borderRadius: 8,
-    padding: 15,
+  technicianDetailCard: {
+    flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 20,
-    marginTop: 10,
-  },
-  closeModalButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  logoutButton: {
-    backgroundColor: "#FF6B6B",
+    backgroundColor: "#F8F9FA",
     borderRadius: 8,
-    padding: 15,
-    alignItems: "center",
-    marginTop: 20,
-    margin: 20,
+    padding: 12,
+    gap: 8,
   },
-  logoutText: {
-    color: "#fff",
-    fontSize: 16,
+  technicianDetailName: {
+    fontSize: 14,
     fontWeight: "600",
+    color: "#1D1D1F",
   },
-  photosGallery: {
-    marginVertical: 10,
+  cableDetail: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: "#34C759",
   },
-  photoGalleryItem: {
+  cableDetailHeader: {
+    marginBottom: 12,
+  },
+  cableDetailTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#34C759",
+  },
+  cableDetailContent: {
+    gap: 8,
+  },
+  cableFlow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  colorBox: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 6,
+    padding: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+  },
+  colorLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#8E8E93",
+    marginBottom: 4,
+  },
+  colorValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1D1D1F",
+  },
+  reasonText: {
+    fontSize: 13,
+    color: "#8E8E93",
+    fontStyle: "italic",
+  },
+  photoContainer: {
     marginRight: 12,
     alignItems: "center",
   },
-  photoGalleryImage: {
+  photo: {
     width: 120,
     height: 120,
-    borderRadius: 10,
-    backgroundColor: "#f0f0f0",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  photoUploadedAt: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 6,
-    fontWeight: "500",
-  },
-  technicianActions: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
-  editButton: {
-    backgroundColor: "#3498db",
     borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    flex: 1,
+    backgroundColor: "#F1F1F1",
+  },
+  photoInfo: {
+    marginTop: 8,
     alignItems: "center",
   },
-  editButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  deleteButton: {
-    backgroundColor: "#e74c3c",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    flex: 1,
-    alignItems: "center",
-  },
-  deleteButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  passwordNote: {
-    fontSize: 12,
-    color: "#999",
-    fontStyle: "italic",
-    marginBottom: 10,
-    marginTop: -5,
-  },
-  modalButtonContainer: {
-    flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-  },
-  modalButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#e0e0e0",
-  },
-  cancelButtonText: {
-    color: "#333",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  saveButton: {
-    backgroundColor: "#10B981",
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  fieldContainer: {
-    marginBottom: 10,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  // input: {
-  //   borderWidth: 1,
-  //   borderColor: '#ddd',
-  //   borderRadius: 8,
-  //   padding: 12,
-  //   fontSize: 16,
-  //   backgroundColor: '#fff',
-  // },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  passwordInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 16,
-    color: "#333",
-  },
-  eyeIcon: {
-    padding: 12,
-  },
-  sectionDivider: {
-    marginTop: 10,
-    marginBottom: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  sectionTitle: {
-    fontSize: 16,
+  photoIndex: {
+    fontSize: 11,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 6,
+    color: "#FF9500",
+    marginBottom: 2,
   },
-  // passwordNote: {
-  //   fontSize: 13,
-  //   color: '#666',
-  //   fontStyle: 'italic',
-  // },
+  photoDate: {
+    fontSize: 11,
+    color: "#8E8E93",
+  },
+  // Photo Preview Modal Styles
+  photoPreviewOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  photoPreviewContainer: {
+    width: "95%",
+    height: "85%",
+    backgroundColor: "#000",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  photoPreviewImage: {
+    width: "100%",
+    height: "80%",
+  },
+  photoPreviewHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+  },
+  photoPreviewDate: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  photoPreviewCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  skeletonContainer: {
+    padding: 4,
+  },
+  skeletonSection: {
+    marginBottom: 24,
+  },
+  skeletonTitle: {
+    height: 24,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+    marginBottom: 16,
+    width: '40%',
+  },
+  skeletonGrid: {
+    gap: 12,
+  },
+  skeletonItem: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+  },
+  skeletonLabel: {
+    height: 12,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    marginBottom: 8,
+    width: '30%',
+  },
+  skeletonValue: {
+    height: 16,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    width: '70%',
+  },
+  skeletonCoordinates: {
+    flexDirection: 'row',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  skeletonCoordinate: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+  },
+  skeletonDivider: {
+    width: 1,
+    backgroundColor: '#E5E5EA',
+    marginHorizontal: 16,
+  },
+  skeletonTechnicianCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    height: 56,
+    gap: 8,
+  },
+  skeletonCableDetail: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#E5E5EA',
+  },
+  skeletonCableHeader: {
+    height: 16,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    marginBottom: 12,
+    width: '40%',
+  },
+  skeletonCableFlow: {
+    height: 40,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+  },
+  skeletonPhotos: {
+    flexDirection: 'row',
+  },
+  skeletonPhotoContainer: {
+    marginRight: 12,
+  },
+  skeletonPhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: '#E5E5EA',
+  },
 });
