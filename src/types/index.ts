@@ -1,5 +1,5 @@
 // User Roles
-export type UserRole = 'Admin' | 'Distributor' | 'Company' | 'Technician';
+export type UserRole = 'SuperAdmin' | 'Distributor' | 'Company' | 'Technician';
 
 // Auth Response
 export interface AuthResponse {
@@ -15,6 +15,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  companyName?: string;
   referCode?: string;
 }
 
@@ -151,6 +152,7 @@ export interface SiteVisit {
   cableConnections?: CableConnection[];
   photos?: Photo[];
   technicianName?: string;
+  companyName?: string;
 }
 
 export interface SiteVisitRequest {

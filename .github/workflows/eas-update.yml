@@ -1,4 +1,4 @@
-name: EAS Update on main branch merge
+name: EAS Auto OTA Update on Main Merge
 
 on:
   push:
@@ -8,8 +8,9 @@ on:
 jobs:
   eas-update:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
       - name: Setup Node
@@ -20,8 +21,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Login to Expo using token
-        run: npx expo login --token ${{ secrets.EXPO_TOKEN }}
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
-      - name: Publish EAS update
-        run: npx eas update --branch main --message "Auto update from GitHub merge"
+      - name: Login to Expo using token
+        run: eas login --token ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA Update to Preview Channel
+        run: eas update --channel preview --message "Auto OTA Update from GitHub"

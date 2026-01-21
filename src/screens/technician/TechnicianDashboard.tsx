@@ -3,21 +3,27 @@ import { apiService } from '@/src/services/api/apiService';
 import apiClient from '@/src/services/api/client';
 import { CableConnection, SiteVisit, SiteVisitPhase1Request } from '@/src/types';
 import { getImageUrl } from '@/src/utils/imageUtils';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
 
 export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { user, logout } = useAuth();
@@ -30,6 +36,16 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
   const [selectedVisitDetails, setSelectedVisitDetails] = useState<SiteVisit | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Photo preview state
+  const [selectedPhotoForPreview, setSelectedPhotoForPreview] = useState<{
+    uri: string;
+    date: string;
+  } | null>(null);
+  const [showPhotoPreviewModal, setShowPhotoPreviewModal] = useState(false);
+
+  // Loading state for details modal
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Phase 1 form state
   const [phase1Data, setPhase1Data] = useState({
@@ -53,7 +69,6 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
   });
 
   // Phase 2 form state
-  const [photosData, setPhotosData] = useState('');
   const [selectedPhotos, setSelectedPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [uploadedVisitIds, setUploadedVisitIds] = useState<number[]>([]);
 
@@ -168,90 +183,65 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
     setCableConnections(cableConnections.filter((_, i) => i !== index));
   };
 
-  // Also update the pickImages function for consistency:
   const pickImages = async () => {
-  try {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.status !== 'granted') {
-      Alert.alert('Permission Required', 'Media library permission is required to select images.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsMultipleSelection: false,
-      exif: false,
-    });
-
-    console.log('Gallery result:', result);
-
-    if (!result.canceled) {
-      if (result.assets && result.assets.length > 0) {
-        console.log('Selected images:', result.assets);
-        setSelectedPhotos(result.assets);
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.status !== 'granted') {
+        Alert.alert('Permission Required', 'Media library permission is required to select images.');
+        return;
       }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsMultipleSelection: true,
+        exif: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedPhotos(prev => [...prev, ...result.assets]);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to pick images. Please try again.');
     }
-  } catch (error: any) {
-    console.error('Image picker error:', error);
-    console.error('Error stack:', error.stack);
-    Alert.alert('Error', 'Failed to pick images. Please try again.');
-  }
-};
+  };
 
   const captureImage = async () => {
-  try {
-    // Request camera permissions first
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (permissionResult.status !== 'granted') {
-      Alert.alert('Permission Required', 'Camera permission is required to capture images.');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: false,
-      exif: false,
-    });
-
-    console.log('Camera result:', result);
-
-    if (!result.canceled) {
-      if (result.assets && result.assets.length > 0) {
-        const capturedImage = result.assets[0];
-        console.log('Captured image:', capturedImage);
-        
-        // Add the captured image to the array
-        setSelectedPhotos(prev => {
-          const newPhotos = [...prev, capturedImage];
-          console.log('Updated photos count:', newPhotos.length);
-          return newPhotos;
-        });
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (permissionResult.status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera permission is required to capture images.');
+        return;
       }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: false,
+        exif: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedPhotos(prev => [...prev, result.assets[0]]);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to capture image. Please try again.');
     }
-  } catch (error: any) {
-    console.error('Camera capture error:', error);
-    console.error('Error stack:', error.stack);
-    Alert.alert('Error', 'Failed to capture image. Please try again.');
-  }
-};
+  };
 
   const getCurrentLocation = async () => {
     try {
       setLocationLoading(true);
 
-      // Request location permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Error', 'Location permission denied. Please enable location access in settings.');
+        Alert.alert('Error', 'Location permission denied.');
         setLocationLoading(false);
         return;
       }
 
-      // Get current location
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
@@ -259,160 +249,151 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
       const { latitude, longitude } = location.coords;
       updatePhase1Field('latitude', latitude.toString());
       updatePhase1Field('longitude', longitude.toString());
-      Alert.alert('Success', `Location captured!\nLat: ${latitude.toFixed(6)}\nLng: ${longitude.toFixed(6)}`);
+      Alert.alert('Location Captured', `Latitude: ${latitude.toFixed(6)}\nLongitude: ${longitude.toFixed(6)}`);
       setLocationLoading(false);
     } catch (error: any) {
-      console.error('Location error:', error);
-      Alert.alert('Error', 'Failed to get current location. Please try again.');
+      Alert.alert('Error', 'Failed to get current location.');
       setLocationLoading(false);
     }
   };
 
-  // Update handlePhase2Submit to handle file creation better:
   const handlePhase2Submit = async () => {
-  if (!selectedVisitForPhotos) {
-    Alert.alert('Error', 'Please select a site visit first');
-    return;
-  }
+    if (!selectedVisitForPhotos) {
+      Alert.alert('Error', 'Please select a site visit first');
+      return;
+    }
 
-  if (selectedPhotos.length === 0) {
-    Alert.alert('Error', 'Please select at least one photo');
-    return;
-  }
+    if (selectedPhotos.length === 0) {
+      Alert.alert('Error', 'Please select at least one photo');
+      return;
+    }
 
-  setLoading(true);
-  
-  try {
-    const formData = new FormData();
+    setLoading(true);
+    
+    try {
+      const formData = new FormData();
 
-    for (let i = 0; i < selectedPhotos.length; i++) {
-      const photo = selectedPhotos[i];
-      
-      console.log(`Processing photo ${i + 1}:`, {
-        uri: photo.uri,
-        fileName: photo.fileName,
-        mimeType: photo.mimeType,
-        fileSize: photo.fileSize,
+      for (let i = 0; i < selectedPhotos.length; i++) {
+        const photo = selectedPhotos[i];
+        const filename = photo.fileName || `photo_${Date.now()}_${i}.jpg`;
+        const mimeType = photo.mimeType || 'image/jpeg';
+
+        formData.append('photos', {
+          uri: photo.uri,
+          name: filename,
+          type: mimeType,
+        } as any);
+      }
+
+      const token = apiClient.defaults.headers.common['Authorization'];
+      const uploadUrl = `${apiClient.defaults.baseURL}/api/SiteVisits/${selectedVisitForPhotos.id}/photos`;
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          ...(token && { 'Authorization': token as string }),
+        },
+        body: formData,
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed with status ${response.status}: ${errorText}`);
+      }
+
+      Alert.alert('Success', `${selectedPhotos.length} photo(s) uploaded successfully!`);
       
-      // Use the fileName from the photo object if available
-      const filename = photo.fileName || `photo_${Date.now()}_${i}.jpg`;
+      setSelectedPhotos([]);
+      setSelectedVisitForPhotos(null);
+      setShowPhase2Modal(false);
+      setUploadedVisitIds(prev => [...prev, selectedVisitForPhotos.id]);
+      await fetchTechnicianVisits();
+
+    } catch (error: any) {
+      let errorMessage = 'Failed to upload photos. ';
       
-      // Use mimeType from photo object
-      const mimeType = photo.mimeType || 'image/jpeg';
-
-      // React Native FormData expects this exact format
-      formData.append('photos', {
-        uri: photo.uri,
-        name: filename,
-        type: mimeType,
-      } as any);
+      if (error.message.includes('Network request failed')) {
+        errorMessage += 'Please check your internet connection.';
+      } else {
+        errorMessage += error.message || 'Please try again.';
+      }
       
-      console.log(`Added photo ${i + 1}:`, { filename, mimeType });
+      Alert.alert('Upload Error', errorMessage);
+    } finally {
+      setLoading(false);
     }
-
-    console.log(`Uploading ${selectedPhotos.length} photo(s) for visit ID: ${selectedVisitForPhotos.id}`);
-
-    // Get the authorization token from apiClient
-    const token = apiClient.defaults.headers.common['Authorization'];
-    
-    // Construct the full URL
-    const uploadUrl = `${apiClient.defaults.baseURL}/api/SiteVisits/${selectedVisitForPhotos.id}/photos`;
-    console.log('Upload URL:', uploadUrl);
-    console.log('Token present:', !!token);
-
-    // Use fetch API for better file upload support
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        ...(token && { 'Authorization': token as string }),
-        // DON'T set Content-Type - let FormData set it with boundary
-      },
-      body: formData,
-    });
-
-    console.log('Upload response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload failed:', errorText);
-      throw new Error(`Upload failed with status ${response.status}: ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('Upload response data:', responseData);
-
-    Alert.alert('Success', `${selectedPhotos.length} photo(s) uploaded successfully!`);
-    
-    // Reset state
-    setSelectedPhotos([]);
-    setPhotosData('');
-    setSelectedVisitForPhotos(null);
-    setShowPhase2Modal(false);
-    
-    // Mark as uploaded
-    setUploadedVisitIds(prev => [...prev, selectedVisitForPhotos.id]);
-    
-    // Refresh list
-    await fetchTechnicianVisits();
-
-  } catch (error: any) {
-    console.error('Upload error:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    
-    let errorMessage = 'Failed to upload photos. ';
-    
-    if (error.message.includes('Network request failed')) {
-      errorMessage += 'Please check your internet connection.';
-    } else if (error.message.includes('fetch')) {
-      errorMessage += 'Network error. Please try again.';
-    } else {
-      errorMessage += error.message || 'Please try again.';
-    }
-    
-    Alert.alert('Upload Error', errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleOpenPhase2 = (visit: SiteVisit) => {
     setSelectedVisitForPhotos(visit);
-    setPhotosData('');
+    setSelectedPhotos([]);
     setShowPhase2Modal(true);
   };
 
   const handleClosePhase2 = () => {
     setShowPhase2Modal(false);
     setSelectedVisitForPhotos(null);
-    setPhotosData('');
     setSelectedPhotos([]);
   };
 
-  const handleViewDetails = async (visit: SiteVisit) => {
-    setLoading(true);
+   const handleViewDetails = async (visit: SiteVisit) => {
+    // Open modal immediately
+    setSelectedVisitDetails(visit); // Set basic visit info immediately
+    setShowDetailsModal(true);
+    setDetailsLoading(true);
+    
     try {
       const details = await apiService.getSiteVisitById(visit.id);
       setSelectedVisitDetails(details);
-      setShowDetailsModal(true);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to fetch site visit details');
+      Alert.alert('Error', error.response?.data?.message || 'Failed to fetch details');
+      // Keep modal open with basic info, just show error in console
+      console.error('Failed to load full details:', error);
     } finally {
-      setLoading(false);
+      setDetailsLoading(false);
     }
   };
 
   const handleCloseDetails = () => {
     setShowDetailsModal(false);
     setSelectedVisitDetails(null);
+    setDetailsLoading(false);
+  };
+
+  // Photo preview functions
+  const handleOpenPhotoPreview = (photo: any) => {
+    const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
+    const photoDate = new Date(photo.uploadedAt).toLocaleDateString('en-IN');
+    
+    setSelectedPhotoForPreview({
+      uri: imageUri,
+      date: photoDate
+    });
+    setShowPhotoPreviewModal(true);
+  };
+
+  const handleClosePhotoPreview = () => {
+    setShowPhotoPreviewModal(false);
+    setSelectedPhotoForPreview(null);
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigation.replace('/landing');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            navigation.replace('/landing');
+          }
+        }
+      ]
+    );
   };
 
   const updatePhase1Field = (field: keyof typeof phase1Data, value: string) => {
@@ -424,172 +405,246 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
   };
 
   const renderPhase1Form = () => (
-    <ScrollView style={styles.formContainer}>
-      <Text style={styles.formTitle}>📍 Phase 1: Site Location & Cable Details</Text>
+    <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+      {/* Form Header */}
+      <View style={styles.formHeader}>
+        <Text style={styles.formTitle}>New Site Visit</Text>
+        <Text style={styles.formSubtitle}>Fill in location and cable details</Text>
+      </View>
 
-      <Text style={styles.sectionLabel}>Location Information</Text>
-
-      <TouchableOpacity
-        style={[styles.autoFillButton, locationLoading && styles.buttonDisabled]}
-        onPress={getCurrentLocation}
-        disabled={locationLoading}
-        activeOpacity={0.8}
-      >
-        {locationLoading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.autoFillButtonText}>📍 Auto-fill Current Location</Text>
-        )}
-      </TouchableOpacity>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Latitude"
-        placeholderTextColor="#999"
-        value={phase1Data.latitude}
-        onChangeText={(value) => updatePhase1Field('latitude', value)}
-        keyboardType="decimal-pad"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Longitude"
-        placeholderTextColor="#999"
-        value={phase1Data.longitude}
-        onChangeText={(value) => updatePhase1Field('longitude', value)}
-        keyboardType="decimal-pad"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="House No & Society Name"
-        placeholderTextColor="#999"
-        value={phase1Data.houseNo}
-        onChangeText={(value) => updatePhase1Field('houseNo', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Street"
-        placeholderTextColor="#999"
-        value={phase1Data.street}
-        onChangeText={(value) => updatePhase1Field('street', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Landmark"
-        placeholderTextColor="#999"
-        value={phase1Data.landmark}
-        onChangeText={(value) => updatePhase1Field('landmark', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Area"
-        placeholderTextColor="#999"
-        value={phase1Data.area}
-        onChangeText={(value) => updatePhase1Field('area', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="City"
-        placeholderTextColor="#999"
-        value={phase1Data.city}
-        onChangeText={(value) => updatePhase1Field('city', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="State"
-        placeholderTextColor="#999"
-        value={phase1Data.state}
-        onChangeText={(value) => updatePhase1Field('state', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Pincode"
-        placeholderTextColor="#999"
-        value={phase1Data.pincode}
-        onChangeText={(value) => updatePhase1Field('pincode', value)}
-        keyboardType="numeric"
-      />
-
-      <Text style={styles.sectionLabel}>Cable Connections</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Core Number"
-        placeholderTextColor="#999"
-        value={currentCable.coreNumber}
-        onChangeText={(value) => updateCableField('coreNumber', value)}
-        keyboardType="numeric"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="From Color"
-        placeholderTextColor="#999"
-        value={currentCable.fromColor}
-        onChangeText={(value) => updateCableField('fromColor', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="To Color"
-        placeholderTextColor="#999"
-        value={currentCable.toColor}
-        onChangeText={(value) => updateCableField('toColor', value)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Reason"
-        placeholderTextColor="#999"
-        value={currentCable.reason}
-        onChangeText={(value) => updateCableField('reason', value)}
-      />
-
-      <TouchableOpacity
-        style={[styles.addButton, loading && styles.buttonDisabled]}
-        onPress={handleAddCableConnection}
-        disabled={loading}
-      >
-        <Text style={styles.addButtonText}>+ Add Cable Connection</Text>
-      </TouchableOpacity>
-
-      {cableConnections.length > 0 && (
-        <View style={styles.cableListContainer}>
-          <Text style={styles.cableListTitle}>Added Connections ({cableConnections.length})</Text>
-          {cableConnections.map((cable, index) => (
-            <View key={index} style={styles.cableItem}>
-              <View style={styles.cableInfo}>
-                <Text style={styles.cableText}>Core: {cable.coreNumber}</Text>
-                <Text style={styles.cableText}>{cable.fromColor} → {cable.toColor}</Text>
-                <Text style={styles.cableText}>Reason: {cable.reason}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleRemoveCableConnection(index)}
-              >
-                <Text style={styles.deleteButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+      {/* Location Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionIcon}>
+            <Ionicons name="location-outline" size={20} color="#007AFF" />
+          </View>
+          <View>
+            <Text style={styles.sectionTitle}>Location Information</Text>
+            <Text style={styles.sectionDescription}>Site address and coordinates</Text>
+          </View>
         </View>
-      )}
 
+        <TouchableOpacity
+          style={[styles.locationButton, locationLoading && styles.disabled]}
+          onPress={getCurrentLocation}
+          disabled={locationLoading}
+        >
+          {locationLoading ? (
+            <ActivityIndicator color="#007AFF" size="small" />
+          ) : (
+            <>
+              <Ionicons name="locate-outline" size={20} color="#007AFF" />
+              <Text style={styles.locationButtonText}>Get Current Location</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.inputRow}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Latitude *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.000000"
+              placeholderTextColor="#999"
+              value={phase1Data.latitude}
+              onChangeText={(value) => updatePhase1Field('latitude', value)}
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Longitude *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0.000000"
+              placeholderTextColor="#999"
+              value={phase1Data.longitude}
+              onChangeText={(value) => updatePhase1Field('longitude', value)}
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+
+        <Text style={styles.inputLabel}>House No & Society *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter house number and society name"
+          placeholderTextColor="#999"
+          value={phase1Data.houseNo}
+          onChangeText={(value) => updatePhase1Field('houseNo', value)}
+        />
+
+        <Text style={styles.inputLabel}>Street *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter street name"
+          placeholderTextColor="#999"
+          value={phase1Data.street}
+          onChangeText={(value) => updatePhase1Field('street', value)}
+        />
+
+        <Text style={styles.inputLabel}>Landmark</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter nearby landmark"
+          placeholderTextColor="#999"
+          value={phase1Data.landmark}
+          onChangeText={(value) => updatePhase1Field('landmark', value)}
+        />
+
+        <Text style={styles.inputLabel}>Area *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter area name"
+          placeholderTextColor="#999"
+          value={phase1Data.area}
+          onChangeText={(value) => updatePhase1Field('area', value)}
+        />
+
+        <View style={styles.inputRow}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>City *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter city"
+              placeholderTextColor="#999"
+              value={phase1Data.city}
+              onChangeText={(value) => updatePhase1Field('city', value)}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>State *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter state"
+              placeholderTextColor="#999"
+              value={phase1Data.state}
+              onChangeText={(value) => updatePhase1Field('state', value)}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.inputLabel}>Pincode *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter pincode"
+          placeholderTextColor="#999"
+          value={phase1Data.pincode}
+          onChangeText={(value) => updatePhase1Field('pincode', value)}
+          keyboardType="numeric"
+        />
+      </View>
+
+      {/* Cable Connections Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionIcon}>
+            <Ionicons name="git-branch-outline" size={20} color="#34C759" />
+          </View>
+          <View>
+            <Text style={styles.sectionTitle}>Cable Connections</Text>
+            <Text style={styles.sectionDescription}>Add cable connection details</Text>
+          </View>
+        </View>
+
+        <Text style={styles.inputLabel}>Core Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter core number"
+          placeholderTextColor="#999"
+          value={currentCable.coreNumber}
+          onChangeText={(value) => updateCableField('coreNumber', value)}
+          keyboardType="numeric"
+        />
+
+        <View style={styles.inputRow}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>From Color</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter color"
+              placeholderTextColor="#999"
+              value={currentCable.fromColor}
+              onChangeText={(value) => updateCableField('fromColor', value)}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>To Color</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter color"
+              placeholderTextColor="#999"
+              value={currentCable.toColor}
+              onChangeText={(value) => updateCableField('toColor', value)}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.inputLabel}>Reason</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter reason for connection"
+          placeholderTextColor="#999"
+          value={currentCable.reason}
+          onChangeText={(value) => updateCableField('reason', value)}
+        />
+
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={handleAddCableConnection}
+        >
+          <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+          <Text style={styles.addButtonText}>Add Cable Connection</Text>
+        </TouchableOpacity>
+
+        {cableConnections.length > 0 && (
+          <View style={styles.cableList}>
+            <View style={styles.cableListHeader}>
+              <Text style={styles.cableListTitle}>Added Connections</Text>
+              <View style={styles.cableCount}>
+                <Text style={styles.cableCountText}>{cableConnections.length}</Text>
+              </View>
+            </View>
+            
+            {cableConnections.map((cable, index) => (
+              <View key={index} style={styles.cableItem}>
+                <View style={styles.cableHeader}>
+                  <View style={styles.cableCore}>
+                    <Text style={styles.cableCoreText}>Core {cable.coreNumber}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleRemoveCableConnection(index)}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.cableDetails}>
+                  <View style={styles.cableConnection}>
+                    <Text style={styles.cableColor}>{cable.fromColor}</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#666" />
+                    <Text style={styles.cableColor}>{cable.toColor}</Text>
+                  </View>
+                  <Text style={styles.cableReason}>Reason: {cable.reason}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Submit Button */}
       <TouchableOpacity
-        style={[styles.registerButton, loading && styles.buttonDisabled]}
+        style={[styles.submitButton, loading && styles.disabled]}
         onPress={handlePhase1Submit}
         disabled={loading}
-        activeOpacity={0.8}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.registerButtonText}>Complete Phase 1</Text>
+          <>
+            <Text style={styles.submitButtonText}>Create Site Visit</Text>
+            <Ionicons name="arrow-forward" size={20} color="#fff" />
+          </>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -597,137 +652,298 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
 
   const renderMyVisitsList = () => (
     <View style={styles.listContainer}>
-      <Text style={styles.listTitle}>📋 My Site Visits</Text>
-
       {refreshing ? (
-        <ActivityIndicator size="large" color="#F59E0B" style={styles.loader} />
+        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
       ) : visits.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyText}>No site visits yet</Text>
-          <Text style={styles.emptySubtext}>Create a new site visit to get started</Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="document-outline" size={64} color="#C7C7CC" />
+          <Text style={styles.emptyStateTitle}>No site visits yet</Text>
+          <Text style={styles.emptyStateText}>Create your first site visit to get started</Text>
+          <TouchableOpacity
+            style={styles.emptyStateButton}
+            onPress={() => setActiveTab('newVisit')}
+          >
+            <Text style={styles.emptyStateButtonText}>Create Visit</Text>
+          </TouchableOpacity>
         </View>
       ) : (
-        visits.map((visit, index) => (
-          <View key={visit.id} style={styles.visitCard}>
-            <View style={styles.visitHeader}>
-              <View style={styles.visitNumberBadge}>
-                <Text style={styles.visitNumberText}>#{visits.length - index}</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {visits.map((visit, index) => (
+            <View key={visit.id} style={styles.visitCard}>
+              <View style={styles.visitHeader}>
+                <View style={styles.visitNumber}>
+                  <Text style={styles.visitNumberText}>#{visits.length - index}</Text>
+                </View>
+                <View style={styles.visitStatus}>
+                  {uploadedVisitIds.includes(visit.id) ? (
+                    <View style={[styles.statusBadge, styles.completedBadge]}>
+                      <Ionicons name="checkmark-circle" size={12} color="#34C759" />
+                      <Text style={styles.statusText}>Completed</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.statusBadge, styles.pendingBadge]}>
+                      <Ionicons name="time-outline" size={12} color="#FF9500" />
+                      <Text style={styles.statusText}>Pending Photos</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <Text style={styles.visitAddress}>{visit.houseNo}</Text>
+              
+              <View style={styles.visitInfo}>
+                <Ionicons name="location-outline" size={16} color="#666" />
+                <Text style={styles.visitInfoText}>
+                  {visit.street}, {visit.city}
+                </Text>
+              </View>
+
+              <View style={styles.visitInfo}>
+                <Ionicons name="calendar-outline" size={16} color="#666" />
+                <Text style={styles.visitInfoText}>
+                  {visit.createdAt ? new Date(visit.createdAt).toLocaleDateString('en-IN') : 'N/A'}
+                </Text>
+              </View>
+
+              {visit.cableConnections && visit.cableConnections.length > 0 && (
+                <View style={styles.visitInfo}>
+                  <Ionicons name="git-branch-outline" size={16} color="#666" />
+                  <Text style={styles.visitInfoText}>
+                    {visit.cableConnections.length} cable connection{visit.cableConnections.length > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.visitActions}>
+                <TouchableOpacity
+                  style={styles.detailsButton}
+                  onPress={() => handleViewDetails(visit)}
+                >
+                  <Ionicons name="eye-outline" size={16} color="#007AFF" />
+                  <Text style={styles.detailsButtonText}>Details</Text>
+                </TouchableOpacity>
+                
+                {!uploadedVisitIds.includes(visit.id) && (
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={() => handleOpenPhase2(visit)}
+                  >
+                    <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
+                    <Text style={styles.uploadButtonText}>Upload Photos</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
-
-            <View style={styles.visitInfo}>
-              <Text style={styles.visitSite}>{visit.houseNo}</Text>
-              <Text style={styles.visitDate}>📌 {visit.street}</Text>
-              <Text style={styles.visitCompany}>📍 {visit.city}, {visit.state}</Text>
-              {visit.cableConnections && visit.cableConnections.length > 0 && (
-                <Text style={styles.visitRemarks}>
-                  🔌 {visit.cableConnections.length} cable connection(s)
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.viewButton]}
-                onPress={() => handleViewDetails(visit)}
-              >
-                <Text style={styles.actionButtonText}>👁️ View</Text>
-              </TouchableOpacity>
-              {uploadedVisitIds.includes(visit.id) ? (
-                <View style={[styles.actionButton, styles.completedButton]}>
-                  <Text style={styles.actionButtonText}>✅ Completed</Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.uploadButton]}
-                  onPress={() => handleOpenPhase2(visit)}
-                >
-                  <Text style={styles.actionButtonText}>📸 Upload</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        ))
+          ))}
+        </ScrollView>
       )}
     </View>
   );
 
+  const renderPhotoPreviewModal = () => (
+    <Modal
+      visible={showPhotoPreviewModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={handleClosePhotoPreview}
+    >
+      <TouchableWithoutFeedback onPress={handleClosePhotoPreview}>
+        <View style={styles.photoPreviewOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.photoPreviewContainer}>
+              {selectedPhotoForPreview && (
+                <>
+                  <Image
+                    source={{ uri: selectedPhotoForPreview.uri }}
+                    style={styles.photoPreviewImage}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.photoPreviewHeader}>
+                    <Text style={styles.photoPreviewDate}>
+                      Uploaded: {selectedPhotoForPreview.date}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.photoPreviewCloseButton}
+                      onPress={handleClosePhotoPreview}
+                    >
+                      <Ionicons name="close" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.photoPreviewActions}>
+                    <TouchableOpacity style={styles.photoPreviewActionButton}>
+                      <Ionicons name="download-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.photoPreviewActionText}>Download</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
   const renderDetailsModal = () => (
+  <Modal
+    visible={showDetailsModal}
+    animationType="slide"
+    transparent={true}
+  >
     <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
+      <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>📍 Site Visit Details</Text>
+          <Text style={styles.modalTitle}>Visit Details</Text>
           <TouchableOpacity
-            style={styles.closeButton}
+            style={styles.modalClose}
             onPress={handleCloseDetails}
           >
-            <Text style={styles.closeButtonText}>✕</Text>
+            <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.modalBody}>
-          {selectedVisitDetails && (
-            <View>
-              <View style={styles.detailsSection}>
-                <Text style={styles.detailsLabel}>Location Information</Text>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>House No:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.houseNo}</Text>
+        <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+          {detailsLoading ? (
+            // Skeleton Loader
+            <View style={styles.skeletonContainer}>
+              {/* Basic Info Skeleton (shown immediately from visit prop) */}
+              {selectedVisitDetails && (
+                <View style={styles.skeletonBasicInfo}>
+                  <View style={styles.skeletonAddress}>
+                    <View style={styles.skeletonAddressTitle} />
+                    <View style={styles.skeletonAddressText} />
+                  </View>
+                  <View style={styles.skeletonTechnicianInfo}>
+                    <View style={styles.skeletonTechnicianItem} />
+                    <View style={styles.skeletonTechnicianItem} />
+                  </View>
                 </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>Street:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.street}</Text>
+              )}
+
+              {/* Location Section Skeleton */}
+              <View style={styles.skeletonSection}>
+                <View style={styles.skeletonTitle} />
+                <View style={styles.skeletonGrid}>
+                  {[...Array(7)].map((_, i) => (
+                    <View key={i} style={styles.skeletonItem}>
+                      <View style={styles.skeletonLabel} />
+                      <View style={styles.skeletonValue} />
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>Landmark:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.landmark}</Text>
+                <View style={styles.skeletonCoordinates}>
+                  <View style={styles.skeletonCoordinate} />
+                  <View style={styles.skeletonDivider} />
+                  <View style={styles.skeletonCoordinate} />
                 </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>Area:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.area}</Text>
+              </View>
+
+              {/* Cable Connections Skeleton */}
+              <View style={styles.skeletonSection}>
+                <View style={styles.skeletonTitle} />
+                {[...Array(2)].map((_, i) => (
+                  <View key={i} style={styles.skeletonCableDetail}>
+                    <View style={styles.skeletonCableHeader} />
+                    <View style={styles.skeletonCableFlow} />
+                    <View style={styles.skeletonCableReason} />
+                  </View>
+                ))}
+              </View>
+
+              {/* Photos Section Skeleton */}
+              <View style={styles.skeletonSection}>
+                <View style={styles.skeletonTitle} />
+                <View style={styles.skeletonPhotos}>
+                  {[...Array(3)].map((_, i) => (
+                    <View key={i} style={styles.skeletonPhotoContainer}>
+                      <View style={styles.skeletonPhoto} />
+                      <View style={styles.skeletonPhotoDate} />
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>City:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.city}</Text>
+              </View>
+            </View>
+          ) : selectedVisitDetails && (
+            <>
+              {/* Basic Info (from visit prop, available immediately) */}
+              <View style={styles.basicInfoSection}>
+                <Text style={styles.basicInfoTitle}>{selectedVisitDetails.houseNo}</Text>
+                <Text style={styles.basicInfoSubtitle}>
+                  {selectedVisitDetails.street}, {selectedVisitDetails.city}
+                </Text>
+                <Text style={styles.basicInfoDate}>
+                  Created: {selectedVisitDetails.createdAt ? new Date(selectedVisitDetails.createdAt).toLocaleDateString('en-IN') : 'N/A'}
+                </Text>
+              </View>
+
+              {/* Location Details */}
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>📍 Location</Text>
+                <View style={styles.detailGrid}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>House No</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.houseNo}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Street</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.street}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Area</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.area}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Landmark</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.landmark}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>City</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.city}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>State</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.state}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Pincode</Text>
+                    <Text style={styles.detailValue}>{selectedVisitDetails.pincode}</Text>
+                  </View>
                 </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>State:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.state}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>Pincode:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.pincode}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>Latitude:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.latitude}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsKey}>Longitude:</Text>
-                  <Text style={styles.detailsValue}>{selectedVisitDetails.longitude}</Text>
+
+                <View style={styles.coordinates}>
+                  <View style={styles.coordinate}>
+                    <Text style={styles.coordinateLabel}>LAT</Text>
+                    <Text style={styles.coordinateValue}>{selectedVisitDetails.latitude}</Text>
+                  </View>
+                  <View style={styles.coordinateDivider} />
+                  <View style={styles.coordinate}>
+                    <Text style={styles.coordinateLabel}>LNG</Text>
+                    <Text style={styles.coordinateValue}>{selectedVisitDetails.longitude}</Text>
+                  </View>
                 </View>
               </View>
 
               {selectedVisitDetails.cableConnections && selectedVisitDetails.cableConnections.length > 0 && (
-                <View style={styles.detailsSection}>
-                  <Text style={styles.detailsLabel}>Cable Connections</Text>
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>🔌 Cable Connections</Text>
                   {selectedVisitDetails.cableConnections.map((cable, index) => (
-                    <View key={index} style={styles.cableDetailsItem}>
-                      <View style={styles.detailsRow}>
-                        <Text style={styles.detailsKey}>Core #{cable.coreNumber}</Text>
+                    <View key={index} style={styles.cableDetail}>
+                      <View style={styles.cableDetailHeader}>
+                        <Text style={styles.cableDetailTitle}>Core {cable.coreNumber}</Text>
                       </View>
-                      <View style={styles.detailsRow}>
-                        <Text style={styles.detailsKey}>From:</Text>
-                        <Text style={styles.detailsValue}>{cable.fromColor}</Text>
-                      </View>
-                      <View style={styles.detailsRow}>
-                        <Text style={styles.detailsKey}>To:</Text>
-                        <Text style={styles.detailsValue}>{cable.toColor}</Text>
-                      </View>
-                      <View style={styles.detailsRow}>
-                        <Text style={styles.detailsKey}>Reason:</Text>
-                        <Text style={styles.detailsValue}>{cable.reason}</Text>
+                      <View style={styles.cableDetailContent}>
+                        <View style={styles.cableFlow}>
+                          <View style={styles.colorBox}>
+                            <Text style={styles.colorLabel}>FROM</Text>
+                            <Text style={styles.colorValue}>{cable.fromColor}</Text>
+                          </View>
+                          <Ionicons name="arrow-forward" size={20} color="#666" />
+                          <View style={styles.colorBox}>
+                            <Text style={styles.colorLabel}>TO</Text>
+                            <Text style={styles.colorValue}>{cable.toColor}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.reasonText}>{cable.reason}</Text>
                       </View>
                     </View>
                   ))}
@@ -735,203 +951,205 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
               )}
 
               {selectedVisitDetails.photos && selectedVisitDetails.photos.length > 0 && (
-                <View style={styles.detailsSection}>
-                  <Text style={styles.detailsLabel}>📸 Uploaded Photos ({selectedVisitDetails.photos.length})</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosGallery}>
+                <View style={styles.modalSection}>
+                  <View style={styles.photosSectionHeader}>
+                    <Text style={styles.modalSectionTitle}>
+                      📸 Photos ({selectedVisitDetails.photos.length})
+                    </Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {selectedVisitDetails.photos.map((photo, index) => {
-                      // Use base64Data if available, otherwise fall back to photoUrl
                       const imageUri = photo.base64Data || getImageUrl(photo.photoUrl);
-                      
                       return (
-                        <View key={index} style={styles.photoGalleryItem}>
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.photoContainer}
+                          onPress={() => handleOpenPhotoPreview(photo)}
+                          activeOpacity={0.8}
+                        >
                           <Image
                             source={{ uri: imageUri }}
-                            style={styles.photoGalleryImage}
-                            onError={(error) => {
-                              console.error('Failed to load image:', error.nativeEvent);
-                            }}
+                            style={styles.photo}
+                            onError={(error) => console.error('Failed to load image:', error.nativeEvent)}
                           />
-                          <Text style={styles.photoUploadedAt}>
-                            {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
-                          </Text>
-                        </View>
+                          <View style={styles.photoInfo}>
+                            <Text style={styles.photoIndex}>#{index + 1}</Text>
+                            <Text style={styles.photoDate}>
+                              {new Date(photo.uploadedAt).toLocaleDateString('en-IN')}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
                       );
                     })}
                   </ScrollView>
                 </View>
               )}
-            </View>
+            </>
           )}
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={handleCloseDetails}
-            disabled={loading}
-          >
-            <Text style={styles.cancelButtonText}>Close</Text>
-          </TouchableOpacity>
         </ScrollView>
       </View>
     </View>
-  );
+  </Modal>
+);
 
   const renderPhase2Modal = () => (
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>📸 Upload Photos</Text>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={handleClosePhase2}
-          >
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalBody}>
-          {selectedVisitForPhotos && (
-            <View style={styles.selectedVisitInfo}>
-              <Text style={styles.selectedVisitTitle}>Site Visit Details:</Text>
-              <Text style={styles.selectedVisitText}>
-                📍 {selectedVisitForPhotos.houseNo}, {selectedVisitForPhotos.area}
-              </Text>
-              <Text style={styles.selectedVisitText}>
-                📌 {selectedVisitForPhotos.street}
-              </Text>
-              <Text style={styles.selectedVisitText}>
-                🏙️ {selectedVisitForPhotos.city}, {selectedVisitForPhotos.state}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.photoButtonsContainer}>
+    <Modal
+      visible={showPhase2Modal}
+      animationType="slide"
+      transparent={true}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Upload Photos</Text>
             <TouchableOpacity
-              style={[styles.pickPhotosButton, loading && styles.buttonDisabled]}
-              onPress={pickImages}
-              disabled={loading}
-              activeOpacity={0.8}
+              style={styles.modalClose}
+              onPress={handleClosePhase2}
             >
-              <Text style={styles.pickPhotosButtonText}>📁 Select from Gallery</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.cameraButton, loading && styles.buttonDisabled]}
-              onPress={captureImage}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cameraButtonText}>📷 Capture Image</Text>
+              <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
           </View>
 
-          {selectedPhotos.length > 0 && (
-            <View style={styles.selectedPhotosContainer}>
-              <Text style={styles.sectionLabel}>Selected Photos ({selectedPhotos.length})</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
-                {selectedPhotos.map((photo, index) => (
-                  <View key={index} style={styles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: photo.uri }}
-                      style={styles.photoPreview}
-                    />
-                    <TouchableOpacity
-                      style={styles.removePhotoButton}
-                      onPress={() => {
-                        setSelectedPhotos(selectedPhotos.filter((_, i) => i !== index));
-                      }}
-                    >
-                      <Text style={styles.removePhotoButtonText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[styles.registerButton, (loading || selectedPhotos.length === 0) && styles.buttonDisabled]}
-            onPress={handlePhase2Submit}
-            disabled={loading || selectedPhotos.length === 0}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.registerButtonText}>Upload Images</Text>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {selectedVisitForPhotos && (
+              <View style={styles.selectedVisit}>
+                <Text style={styles.selectedVisitLabel}>Selected Visit</Text>
+                <Text style={styles.selectedVisitTitle}>{selectedVisitForPhotos.houseNo}</Text>
+                <Text style={styles.selectedVisitAddress}>
+                  {selectedVisitForPhotos.street}, {selectedVisitForPhotos.city}
+                </Text>
+              </View>
             )}
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={handleClosePhase2}
-            disabled={loading}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </ScrollView>
+            <View style={styles.photoActions}>
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={pickImages}
+                disabled={loading}
+              >
+                <Ionicons name="images-outline" size={28} color="#5856D6" />
+                <Text style={styles.photoButtonText}>Gallery</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={captureImage}
+                disabled={loading}
+              >
+                <Ionicons name="camera-outline" size={28} color="#FF9500" />
+                <Text style={styles.photoButtonText}>Camera</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedPhotos.length > 0 && (
+              <View style={styles.selectedPhotos}>
+                <View style={styles.selectedPhotosHeader}>
+                  <Text style={styles.selectedPhotosTitle}>Selected Photos</Text>
+                  <View style={styles.photoCount}>
+                    <Text style={styles.photoCountText}>{selectedPhotos.length}</Text>
+                  </View>
+                </View>
+                
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {selectedPhotos.map((photo, index) => (
+                    <View key={index} style={styles.photoPreview}>
+                      <Image source={{ uri: photo.uri }} style={styles.photoPreviewImage} />
+                      <TouchableOpacity
+                        style={styles.removePhoto}
+                        onPress={() => setSelectedPhotos(selectedPhotos.filter((_, i) => i !== index))}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.uploadButton, (loading || selectedPhotos.length === 0) && styles.disabled]}
+              onPress={handlePhase2Submit}
+              disabled={loading || selectedPhotos.length === 0}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+                  <Text style={styles.uploadButtonText}>Upload {selectedPhotos.length} Photos</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.greeting}>Hello, {user?.name || 'Technician'} 👷‍♂️</Text>
-          <Text style={styles.role}>Site Visit Management</Text>
+        <View>
+          <Text style={styles.welcome}>Welcome back</Text>
+          <Text style={styles.userName}>{user?.name || 'Technician'}</Text>
         </View>
-        <View style={styles.headerDecoration} />
+        <TouchableOpacity style={styles.logout} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={22} color="#007AFF" />
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.tabContainer}>
+      {/* Tab Bar */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'newVisit' && styles.activeTab]}
           onPress={() => setActiveTab('newVisit')}
-          activeOpacity={0.7}
         >
+          <Ionicons 
+            name="add-circle-outline" 
+            size={20} 
+            color={activeTab === 'newVisit' ? '#007AFF' : '#8E8E93'} 
+          />
           <Text style={[styles.tabText, activeTab === 'newVisit' && styles.activeTabText]}>
-            ➕  New Visit
+            New Visit
           </Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles.tab, activeTab === 'myVisits' && styles.activeTab]}
           onPress={() => setActiveTab('myVisits')}
-          activeOpacity={0.7}
         >
+          <Ionicons 
+            name="document-text-outline" 
+            size={20} 
+            color={activeTab === 'myVisits' ? '#007AFF' : '#8E8E93'} 
+          />
           <Text style={[styles.tabText, activeTab === 'myVisits' && styles.activeTabText]}>
-            📋 My Visits
+            My Visits ({visits.length})
           </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.scrollContent}>
-        {activeTab === 'newVisit' && renderPhase1Form()}
-        {activeTab === 'myVisits' && (
-          <ScrollView
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={fetchTechnicianVisits}
-                tintColor="#F59E0B"
-                colors={['#F59E0B']}
-              />
-            }
-          >
-            {renderMyVisitsList()}
-          </ScrollView>
-        )}
-
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-          activeOpacity={0.8}
+      {/* Content */}
+      {activeTab === 'newVisit' && renderPhase1Form()}
+      {activeTab === 'myVisits' && (
+        <ScrollView
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={fetchTechnicianVisits}
+              tintColor="#007AFF"
+            />
+          }
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.logoutText}>🚪 Logout</Text>
-        </TouchableOpacity>
-      </View>
+          {renderMyVisitsList()}
+        </ScrollView>
+      )}
 
-      {showPhase2Modal && renderPhase2Modal()}
-      {showDetailsModal && renderDetailsModal()}
+      {renderPhase2Modal()}
+      {renderDetailsModal()}
+      {renderPhotoPreviewModal()}
     </View>
   );
 };
@@ -939,232 +1157,300 @@ export const TechnicianDashboard: React.FC<{ navigation: any }> = ({ navigation 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#F8F9FA',
   },
   header: {
-    backgroundColor: '#F59E0B',
-    padding: 20,
-    paddingTop: 40,
-    paddingBottom: 30,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  headerContent: {
-    zIndex: 1,
-  },
-  headerDecoration: {
-    position: 'absolute',
-    right: -30,
-    top: -30,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(251, 146, 60, 0.3)',
-  },
-  greeting: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
-  },
-  role: {
-    fontSize: 14,
-    color: '#FEF3C7',
-    fontWeight: '500',
-  },
-  tabContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderBottomColor: '#E5E5EA',
+  },
+  welcome: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: 2,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1D1D1F',
+  },
+  logout: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
   },
   tab: {
     flex: 1,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
   },
   activeTab: {
-    borderBottomColor: '#F59E0B',
-    backgroundColor: '#FFF7ED',
+    borderBottomWidth: 2,
+    borderBottomColor: '#007AFF',
   },
   tabText: {
-    fontSize: 13,
-    color: '#999',
+    fontSize: 14,
     fontWeight: '500',
+    color: '#8E8E93',
   },
   activeTabText: {
-    color: '#F59E0B',
-    fontWeight: '700',
-  },
-  scrollContent: {
-    flex: 1,
+    color: '#007AFF',
+    fontWeight: '600',
   },
   formContainer: {
-    padding: 20,
+    flex: 1,
+    padding: 16,
+  },
+  formHeader: {
+    marginBottom: 24,
   },
   formTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#333',
-    marginBottom: 20,
+    color: '#1D1D1F',
+    marginBottom: 4,
   },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 15,
-    marginBottom: 10,
+  formSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
   },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
+  section: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 15,
-    fontSize: 16,
-    borderWidth: 2,
-    borderColor: '#FFE4CC',
-    color: '#333',
-  },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  addButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 15,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cableListContainer: {
-    backgroundColor: '#FFF7ED',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#FFE4CC',
+    borderColor: '#E5E5EA',
   },
-  cableListTitle: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    color: '#1D1D1F',
   },
-  cableItem: {
-    backgroundColor: '#fff',
+  sectionDescription: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  locationButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  inputGroup: {
+    flex: 1,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1D1D1F',
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: '#1D1D1F',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  addButton: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34C759',
+  },
+  cableList: {
+    marginTop: 16,
+  },
+  cableListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  cableListTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  cableCount: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  cableCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  cableItem: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#34C759',
+  },
+  cableHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    marginBottom: 8,
   },
-  cableInfo: {
-    flex: 1,
+  cableCore: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
   },
-  cableText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
-    fontWeight: '500',
+  cableCoreText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34C759',
   },
   deleteButton: {
-    backgroundColor: '#EF4444',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
+    padding: 4,
+  },
+  cableDetails: {
+    gap: 6,
+  },
+  cableConnection: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  cableColor: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1D1D1F',
   },
-  registerButton: {
-    backgroundColor: '#F59E0B',
+  cableReason: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+  },
+  submitButton: {
+    flexDirection: 'row',
+    backgroundColor: '#007AFF',
     borderRadius: 10,
     padding: 16,
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-    elevation: 0,
-  },
-  registerButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  listContainer: {
-    padding: 20,
-  },
-  listTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 20,
-  },
-  loader: {
-    marginTop: 40,
-  },
-  emptyContainer: {
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    marginTop: 8,
+    marginBottom: 20,
+    gap: 8,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 15,
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  disabled: {
     opacity: 0.5,
   },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
+  listContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  loader: {
+    marginTop: 60,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 5,
+    color: '#1D1D1F',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  emptySubtext: {
-    textAlign: 'center',
-    color: '#bbb',
+  emptyStateText: {
     fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyStateButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyStateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   visitCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 14,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
   },
   visitHeader: {
     flexDirection: 'row',
@@ -1172,316 +1458,572 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  visitNumberBadge: {
-    backgroundColor: '#FFF7ED',
+  visitNumber: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
   },
   visitNumberText: {
-    color: '#F59E0B',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  visitInfo: {
-    flex: 1,
-    marginBottom: 12,
-  },
-  visitSite: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
-  },
-  visitCompany: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 5,
-    fontWeight: '500',
-  },
-  visitDate: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 5,
-    fontWeight: '500',
-  },
-  visitRemarks: {
     fontSize: 14,
-    color: '#888',
-    marginTop: 5,
-    fontStyle: 'italic',
+    fontWeight: '700',
+    color: '#007AFF',
   },
-  actionButtonsContainer: {
+  visitStatus: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     alignItems: 'center',
   },
-  viewButton: {
-    backgroundColor: '#3B82F6',
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
-  uploadButton: {
-    backgroundColor: '#10B981',
+  completedBadge: {
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
   },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 13,
+  pendingBadge: {
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+  },
+  statusText: {
+    fontSize: 12,
     fontWeight: '600',
   },
-  selectedVisitInfo: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  selectedVisitTitle: {
+  visitAddress: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: '#1D1D1F',
+    marginBottom: 12,
   },
-  selectedVisitText: {
+  visitInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  visitInfoText: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
+  },
+  visitActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  detailsButton: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  detailsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  uploadButton: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#34C759',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-    zIndex: 1000,
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '90%',
-    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
+    borderBottomColor: '#E5E5EA',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: '#1D1D1F',
   },
-  closeButton: {
+  modalClose: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#F2F2F7',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#F59E0B',
-    fontWeight: 'bold',
-  },
-  modalBody: {
+  modalContent: {
     padding: 20,
   },
-  cancelButton: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 12,
+  modalSection: {
+    marginBottom: 24,
   },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  logoutButton: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  logoutText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  detailsSection: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  detailsLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
-  },
-  detailsRow: {
+  photosSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
-  detailsKey: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    flex: 1,
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1D1D1F',
+    marginBottom: 16,
   },
-  detailsValue: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
+  detailGrid: {
+    gap: 12,
   },
-  cableDetailsItem: {
-    backgroundColor: '#fff',
+  detailItem: {
+    backgroundColor: '#F8F9FA',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
   },
-  pickPhotosButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#1E40AF',
-  },
-  pickPhotosButtonText: {
-    color: '#fff',
-    fontSize: 15,
+  detailLabel: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 4,
   },
-  selectedPhotosContainer: {
-    marginBottom: 15,
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1D1D1F',
   },
-  photosScroll: {
-    marginVertical: 10,
-  },
-  photoPreviewContainer: {
-    position: 'relative',
-    marginRight: 10,
-  },
-  photoPreview: {
-    width: 100,
-    height: 100,
+  coordinates: {
+    flexDirection: 'row',
+    backgroundColor: '#F8F9FA',
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
   },
-  removePhotoButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#EF4444',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
+  coordinate: {
+    flex: 1,
     alignItems: 'center',
   },
-  removePhotoButtonText: {
-    color: '#fff',
+  coordinateDivider: {
+    width: 1,
+    backgroundColor: '#E5E5EA',
+    marginHorizontal: 16,
+  },
+  coordinateLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8E8E93',
+    marginBottom: 4,
+  },
+  coordinateValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  cableDetail: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#34C759',
+  },
+  cableDetailHeader: {
+    marginBottom: 12,
+  },
+  cableDetailTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#34C759',
   },
-  completedButton: {
-    backgroundColor: '#10B981',
-    borderColor: '#059669',
+  cableDetailContent: {
+    gap: 8,
   },
-  photosGallery: {
-    marginVertical: 10,
+  cableFlow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  photoGalleryItem: {
+  colorBox: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    padding: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  colorLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8E8E93',
+    marginBottom: 4,
+  },
+  colorValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  reasonText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+  },
+  photoContainer: {
     marginRight: 12,
     alignItems: 'center',
   },
-  photoGalleryImage: {
+  photo: {
     width: 120,
     height: 120,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: '#F1F1F1',
   },
-  photoUploadedAt: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  autoFillButton: {
-    backgroundColor: '#06B6D4',
-    borderRadius: 10,
-    padding: 14,
+  photoInfo: {
+    marginTop: 8,
     alignItems: 'center',
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: '#0891B2',
+  },
+  photoIndex: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginBottom: 2,
+  },
+  photoDate: {
+    fontSize: 11,
+    color: '#8E8E93',
+  },
+  selectedVisit: {
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.2)',
+  },
+  selectedVisitLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#34C759',
+    marginBottom: 6,
+  },
+  selectedVisitTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1D1D1F',
+    marginBottom: 4,
+  },
+  selectedVisitAddress: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  photoButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  selectedPhotos: {
+    marginBottom: 20,
+  },
+  selectedPhotosHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  selectedPhotosTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1D1D1F',
+  },
+  photoCount: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  photoCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  photoPreview: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  removePhoto: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  // Photo Preview Modal Styles
+  photoPreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPreviewContainer: {
+    width: '95%',
+    height: '85%',
+    backgroundColor: '#000',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  photoPreviewImage: {
+    width: '100%',
+    height: '80%',    
+    borderRadius: 8,
+    // backgroundColor: '#F1F1F1',
+  },
+  photoPreviewHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  photoPreviewDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  photoPreviewCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPreviewActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  autoFillButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  cameraButton: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#7C3AED',
-  },
-  cameraButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  photoButtonsContainer: {
+  photoPreviewActionButton: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 15,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+  },
+  photoPreviewActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Skeleton Loader Styles (keep as is)
+  skeletonContainer: {
+    padding: 4,
+  },
+  skeletonBasicInfo: {
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+  },
+  skeletonAddress: {
+    marginBottom: 12,
+  },
+  skeletonAddressTitle: {
+    height: 24,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+    marginBottom: 8,
+    width: '60%',
+  },
+  skeletonAddressText: {
+    height: 16,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    width: '80%',
+  },
+  skeletonTechnicianInfo: {
+    gap: 8,
+  },
+  skeletonTechnicianItem: {
+    height: 14,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    width: '50%',
+  },
+  skeletonSection: {
+    marginBottom: 24,
+  },
+  skeletonTitle: {
+    height: 24,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+    marginBottom: 16,
+    width: '40%',
+  },
+  skeletonGrid: {
+    gap: 12,
+  },
+  skeletonItem: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+  },
+  skeletonLabel: {
+    height: 12,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    marginBottom: 8,
+    width: '30%',
+  },
+  skeletonValue: {
+    height: 16,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    width: '70%',
+  },
+  skeletonCoordinates: {
+    flexDirection: 'row',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
+  },
+  skeletonCoordinate: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+  },
+  skeletonDivider: {
+    width: 1,
+    backgroundColor: '#E5E5EA',
+    marginHorizontal: 16,
+  },
+  skeletonCableDetail: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#E5E5EA',
+  },
+  skeletonCableHeader: {
+    height: 16,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    marginBottom: 12,
+    width: '40%',
+  },
+  skeletonCableFlow: {
+    height: 40,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  skeletonCableReason: {
+    height: 12,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    width: '60%',
+  },
+  skeletonPhotos: {
+    flexDirection: 'row',
+  },
+  skeletonPhotoContainer: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  skeletonPhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: '#E5E5EA',
+  },
+  skeletonPhotoDate: {
+    height: 12,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    marginTop: 6,
+    width: 80,
+  },
+  
+  // Basic Info Section Styles
+  basicInfoSection: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  basicInfoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1D1D1F',
+    marginBottom: 4,
+  },
+  basicInfoSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  basicInfoDate: {
+    fontSize: 12,
+    color: '#8E8E93',
   },
 });
-

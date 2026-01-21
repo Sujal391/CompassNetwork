@@ -1,6 +1,7 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { apiService } from '@/src/services/api/apiService';
 import { Company } from '@/src/types';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -41,32 +42,54 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigation.replace('/landing');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            navigation.replace('/landing');
+          }
+        }
+      ]
+    );
   };
 
   const menuItems = [
-    { id: 1, title: 'Register Company', icon: '🏢', color: '#10B981', route: '/distributor/register-company' },
+    { 
+      id: 1, 
+      title: 'Register New Company', 
+      description: 'Add a new company to your portfolio',
+      icon: 'business-outline' as const, 
+      route: '/distributor/register-company' 
+    },
   ];
 
   const renderRegisterForm = () => (
     <View style={styles.content}>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionSubtitle}>Manage your distributor account</Text>
+      </View>
 
       {menuItems.map((item) => (
         <TouchableOpacity
           key={item.id}
-          style={styles.menuCard}
+          style={styles.actionCard}
           onPress={() => item.route && navigation.push(item.route)}
-          disabled={!item.route}
         >
-          <View style={[styles.iconBox, { backgroundColor: item.color }]}>
-            <Text style={styles.icon}>{item.icon}</Text>
+          <View style={styles.actionIconContainer}>
+            <Ionicons name={item.icon} size={24} color="#007AFF" />
           </View>
-          <View style={styles.menuInfo}>
-            <Text style={styles.menuTitle}>{item.title}</Text>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>{item.title}</Text>
+            <Text style={styles.actionDescription}>{item.description}</Text>
           </View>
-          <Text style={styles.arrow}>→</Text>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
         </TouchableOpacity>
       ))}
     </View>
@@ -74,37 +97,70 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
 
   const renderCompaniesList = () => (
     <View style={styles.listContainer}>
-      <Text style={styles.listTitle}>My Companies</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>My Companies</Text>
+        <Text style={styles.sectionSubtitle}>{companies.length} companies registered</Text>
+      </View>
 
       {refreshing ? (
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
       ) : companies.length === 0 ? (
-        <Text style={styles.emptyText}>No companies registered yet</Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="business-outline" size={48} color="#C7C7CC" />
+          <Text style={styles.emptyTitle}>No companies yet</Text>
+          <Text style={styles.emptyDescription}>Register your first company to get started</Text>
+        </View>
       ) : (
         companies.map((company) => (
-          <View key={company.id} style={styles.companyCard}>
-            <View style={styles.companyInfo}>
-              <Text style={styles.companyName}>{company.companyName}</Text>
-              <Text style={styles.companyEmail}>Email: {company.companyEmail}</Text>
-              <Text style={styles.companyPhone}>Ph no: {company.mobileNumber}</Text>
-              <Text style={styles.companyEmail}>GST: {company.gstNumber}</Text>
-              <Text style={styles.companyEmail}>Address: {company.companyAddress}</Text>
-              <Text style={styles.companyEmail}>Technician Count: {company.technicianCount}</Text>
-              <Text style={styles.companyEmail}>
-                Created At:{' '}
-                {company.createdAt
-                  ? new Date(company.createdAt).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : 'N/A'}
-              </Text>
+          <TouchableOpacity 
+            key={company.id} 
+            style={styles.companyCard}
+            onPress={() => {/* Add navigation to company details if needed */}}
+          >
+            <View style={styles.companyHeader}>
+              <View style={styles.companyIcon}>
+                <Ionicons name="business" size={20} color="#007AFF" />
+              </View>
+              <View style={styles.companyTitleContainer}>
+                <Text style={styles.companyName} numberOfLines={1}>
+                  {company.companyName}
+                </Text>
+                <Text style={styles.companyGST}>GST: {company.gstNumber}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            <View style={styles.companyDetails}>
+              <View style={styles.detailRow}>
+                <Ionicons name="mail-outline" size={16} color="#8E8E93" />
+                <Text style={styles.detailText} numberOfLines={1}>
+                  {company.companyEmail}
+                </Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Ionicons name="call-outline" size={16} color="#8E8E93" />
+                <Text style={styles.detailText}>{company.mobileNumber}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Ionicons name="people-outline" size={16} color="#8E8E93" />
+                <Text style={styles.detailText}>
+                  {company.technicianCount} technician{company.technicianCount !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              
               {company.referCode && (
-                <Text style={styles.companyCode}>Code: {company.referCode}</Text>
+                <View style={styles.referCodeContainer}>
+                  <Text style={styles.referCodeLabel}>Referral Code:</Text>
+                  <View style={styles.referCodeBadge}>
+                    <Text style={styles.referCodeText}>{company.referCode}</Text>
+                  </View>
+                </View>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </View>
@@ -113,8 +169,16 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Welcome, {user?.name || 'Distributor'}!</Text>
-        <Text style={styles.role}>Distributor Account</Text>
+        <View>
+          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.userName}>{user?.name || 'Distributor'}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>Distributor</Text>
+          </View>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabContainer}>
@@ -122,16 +186,27 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
           style={[styles.tab, activeTab === 'register' && styles.activeTab]}
           onPress={() => setActiveTab('register')}
         >
+          <Ionicons 
+            name="add-circle-outline" 
+            size={20} 
+            color={activeTab === 'register' ? '#007AFF' : '#8E8E93'} 
+          />
           <Text style={[styles.tabText, activeTab === 'register' && styles.activeTabText]}>
-            Register Company
+            Register
           </Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles.tab, activeTab === 'companies' && styles.activeTab]}
           onPress={() => setActiveTab('companies')}
         >
+          <Ionicons 
+            name="business-outline" 
+            size={20} 
+            color={activeTab === 'companies' ? '#007AFF' : '#8E8E93'} 
+          />
           <Text style={[styles.tabText, activeTab === 'companies' && styles.activeTabText]}>
-            My Companies
+            Companies ({companies.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -140,16 +215,23 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
         style={styles.scrollContent}
         refreshControl={
           activeTab === 'companies' ? (
-            <RefreshControl refreshing={refreshing} onRefresh={fetchDistributorCompanies} />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={fetchDistributorCompanies}
+              tintColor="#007AFF"
+            />
           ) : undefined
         }
+        showsVerticalScrollIndicator={false}
       >
         {activeTab === 'register' && renderRegisterForm()}
         {activeTab === 'companies' && renderCompaniesList()}
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Need help? Contact support
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -158,43 +240,71 @@ export const DistributorDashboard: React.FC<{ navigation: any }> = ({ navigation
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     backgroundColor: '#007AFF',
-    padding: 20,
-    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 60,
     paddingBottom: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 4,
   },
-  role: {
-    fontSize: 14,
-    color: '#E3F2FD',
+  userName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  roleBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  roleText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tabContainer: {
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#E5E5EA',
   },
   tab: {
     flex: 1,
-    paddingVertical: 15,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    gap: 8,
   },
   activeTab: {
     borderBottomColor: '#007AFF',
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: '#8E8E93',
     fontWeight: '500',
   },
   activeTabText: {
@@ -210,111 +320,153 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 20,
   },
-  listTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 20,
+  sectionHeader: {
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1D1D1F',
+    marginBottom: 4,
   },
-  menuCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 12,
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  actionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1D1D1F',
+    marginBottom: 4,
+  },
+  actionDescription: {
+    fontSize: 14,
+    color: '#8E8E93',
   },
   companyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
   },
-  companyInfo: {
+  companyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  companyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  companyTitleContainer: {
     flex: 1,
   },
   companyName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
+    color: '#1D1D1F',
+    marginBottom: 4,
   },
-  companyEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 3,
+  companyGST: {
+    fontSize: 13,
+    color: '#8E8E93',
   },
-  companyPhone: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 3,
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5EA',
+    marginBottom: 16,
   },
-  companyCode: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
-    marginTop: 5,
+  companyDetails: {
+    gap: 12,
   },
-  loader: {
-    marginTop: 20,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    fontSize: 16,
-    marginTop: 20,
-  },
-  iconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
-    justifyContent: 'center',
+  detailRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 15,
+    gap: 12,
   },
-  icon: {
-    fontSize: 24,
-  },
-  menuInfo: {
+  detailText: {
+    fontSize: 14,
+    color: '#1D1D1F',
     flex: 1,
   },
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  arrow: {
-    fontSize: 18,
-    color: '#007AFF',
-  },
-  logoutButton: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 8,
-    padding: 15,
+  referCodeContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
-    margin: 20,
+    justifyContent: 'space-between',
+    marginTop: 8,
   },
-  logoutText: {
-    color: '#fff',
-    fontSize: 16,
+  referCodeLabel: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  referCodeBadge: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  referCodeText: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  loader: {
+    marginTop: 40,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: '600',
+    color: '#1D1D1F',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyDescription: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#8E8E93',
   },
 });
-
